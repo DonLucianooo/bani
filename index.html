@@ -174,6 +174,19 @@ dialog::backdrop{background:rgba(15,25,15,.4)}
 .inv .ic{background:#EEF0FF!important;color:#5B5BF0!important}
 .inv.crypto .ic{background:#FFF3DC!important;color:#C98A0B!important}
 .add-inv{margin-top:10px}
+
+.pf-list{display:grid;gap:2px;margin-top:6px}
+.coin{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:9px 4px;border-radius:14px}
+.coin:hover{background:var(--surface-2)}
+.coin .sy{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:.72rem;background:#FFF3DC;color:#A86F00}
+.coin .nm b{display:block;font-weight:600}.coin .nm small{color:var(--muted);font-size:.8rem}
+.coin .vl{text-align:right;font-family:var(--display);font-weight:700}.coin .vl small{display:block;font-family:var(--body);font-weight:600;font-size:.76rem}
+.coin-tx{background:var(--surface-2);border-radius:14px;padding:6px 12px;margin:2px 0 8px}
+.coin-tx .r{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:.86rem}
+.coin-tx .r:first-child{border-top:0}
+.coin-tx .r button{border:0;background:none;color:var(--accent-text);font-weight:600;padding:0}
+.pf-meta{font-size:.78rem;color:var(--muted);text-align:center;margin:8px 0 0}
+.row3{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -300,6 +313,10 @@ window.FIREBASE_CONFIG = {
     <p class="err" id="fErr"></p>
     <div class="field"><span class="flbl">Categorie</span><div class="chips" id="fCats"></div></div>
     <div class="field" id="fInvBox" hidden><label for="fInv">Se adaugă automat la investiția</label><select id="fInv"></select></div>
+    <div class="row2" id="fCoinBox" hidden>
+      <div class="field"><label for="fCoin">Monedă</label><input id="fCoin" list="cSymList" autocapitalize="characters" placeholder="ex. BTC"></div>
+      <div class="field"><label for="fCoinQty">Cantitate</label><input id="fCoinQty" inputmode="decimal" placeholder="câte monede"></div>
+    </div>
     <div class="row2">
       <div class="field"><label for="fDate">Data</label><input type="date" id="fDate"></div>
       <div class="field"><label for="fNote">Notă</label><input id="fNote" placeholder="opțional" maxlength="80"></div>
@@ -335,6 +352,51 @@ window.FIREBASE_CONFIG = {
       <p class="hint" style="margin:0">Suma se adaugă la investiție și se scade din banii tăi, ca o cheltuială la Crypto sau Bursă.</p>
     </div>
     <button type="button" class="ghost danger" id="iDelete" hidden>Șterge investiția</button>
+  </form>
+</dialog>
+
+<dialog id="pfDialog" aria-labelledby="pfTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="pfTitle">Portofoliu crypto</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div id="pfBody"></div>
+    <div class="row2">
+      <button type="button" class="primary" id="pfAdd">Adaugă tranzacție</button>
+      <button type="button" class="ghost" id="pfRefresh">Actualizează prețurile</button>
+    </div>
+    <button type="button" class="ghost" id="pfImport">Importă portofoliul din Claude</button>
+    <input type="file" id="pfFile" accept=".json,application/json" hidden>
+  </div>
+</dialog>
+
+<dialog id="ctxDialog" aria-labelledby="ctxTitle">
+  <form class="sheet" id="ctxForm" novalidate>
+    <div class="sheet-head">
+      <h2 id="ctxTitle">Tranzacție crypto</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="seg" role="group" aria-label="Tip">
+      <button type="button" data-ctype="buy" aria-pressed="true">Cumpărare</button>
+      <button type="button" data-ctype="sell" aria-pressed="false">Vânzare</button>
+    </div>
+    <div class="row3">
+      <div class="field"><label for="cSym">Monedă</label><input id="cSym" list="cSymList" autocapitalize="characters" placeholder="ex. NEAR"><datalist id="cSymList"></datalist></div>
+      <div class="field"><label for="cDate">Data</label><input type="date" id="cDate"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label for="cQty">Cantitate</label><input id="cQty" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label for="cUsd">Total în USD</label><input id="cUsd" inputmode="decimal" placeholder="0"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label for="cPlat">Platformă</label><input id="cPlat" list="cPlatList" placeholder="Revolut, Bybit…"><datalist id="cPlatList"><option>Revolut</option><option>Bybit</option><option>Binance</option></datalist></div>
+      <div class="field"><label for="cNote">Notă</label><input id="cNote" placeholder="opțional" maxlength="80"></div>
+    </div>
+    <p class="hint" id="cHint" style="margin:0">Asta notează doar moneda în portofoliu. Dacă ai plătit din banii voastri, notează și cheltuiala la categoria Crypto.</p>
+    <p class="err" id="cErr"></p>
+    <button type="submit" class="primary" id="cSave">Salvează</button>
+    <button type="button" class="ghost danger" id="cDelete" hidden>Șterge tranzacția</button>
   </form>
 </dialog>
 
@@ -659,6 +721,7 @@ $("#prev").onclick = () => { view.setMonth(view.getMonth()-1); subMonth(); };
 $("#next").onclick = () => { view.setMonth(view.getMonth()+1); subMonth(); };
 document.querySelectorAll(".list-head .seg button").forEach(b => b.onclick = () => {
   filter = b.dataset.f;
+  if (filter === "inv") loadPrices(false);
   document.querySelectorAll(".list-head .seg button").forEach(x=>x.setAttribute("aria-pressed", x===b));
   render();
 });
@@ -680,12 +743,20 @@ const isSalary = () => fType === "in" && /^salariu$/i.test(fCat || "");
 const invKindOf = c => /^crypto$/i.test(c||"") ? "crypto" : /^burs[aă]$/i.test(c||"") ? "bursa" : null;
 function renderInvPick(){
   const k = fType === "out" && !editing ? invKindOf(fCat) : null;
-  $("#fInvBox").hidden = !k; if (!k) return;
+  $("#fInvBox").hidden = !k; if (!k) { $("#fCoinBox").hidden = true; return; }
   const opts = (H.inv||[]).filter(i => i.kind === k);
   const mine = opts.find(i => i.owner === user.uid) || opts.find(i => !i.owner) || opts[0];
-  $("#fInv").innerHTML = opts.map(i => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.owner ? nameOf(i.owner) : "Comun")})</option>`).join("")
+  const pf = k === "crypto" && pfHas();
+  $("#fInv").innerHTML = (pf ? `<option value="__pf">Portofoliu crypto</option>` : "")
+    + opts.map(i => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.owner ? nameOf(i.owner) : "Comun")})</option>`).join("")
     + `<option value="__new">Investiție nouă: ${esc(fCat)} (${esc(myName())})</option>`;
-  $("#fInv").value = mine ? mine.id : "__new";
+  $("#fInv").value = pf ? "__pf" : (mine ? mine.id : "__new");
+  coinBox();
+}
+function coinBox(){
+  const on = !$("#fInvBox").hidden && $("#fInv").value === "__pf";
+  $("#fCoinBox").hidden = !on;
+  if (on) $("#cSymList").innerHTML = pfAssets().map(a=>`<option value="${esc(a.sym)}">`).join("");
 }
 // adaugă (sau scade) o sumă într-o investiție; întoarce id-ul investiției
 function bumpInv(invId, delta, kind, name){
@@ -734,6 +805,7 @@ document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => openTx(b.
 txD.querySelectorAll("[data-type]").forEach(b => b.onclick = () => setType(b.dataset.type));
 $("#list").addEventListener("click", e => {
   if (e.target.closest("#addInv")) { openInv(null); return; }
+  if (e.target.closest("[data-pf],#openPf")) { openPf(); return; }
   const iv = e.target.closest("[data-inv]"); if (iv) { openInv(iv.dataset.inv); return; }
   const b = e.target.closest(".tx"); if (!b) return;
   const t = monthTx.find(x=>x.id===b.dataset.id); if (t) openTx(t.type, t);
@@ -749,17 +821,25 @@ $("#txForm").addEventListener("submit", e => {
   if (editing) {
     // dacă tranzacția e legată de o investiție, ajustăm și investiția cu diferența
     if (editing.invId && amount !== editing.amount) bumpInv(editing.invId, amount - editing.amount);
+    if (editing.pfTx && amount !== editing.amount) pfEditUsd(editing.pfTx, amount);
     updateDoc(doc(col, editing.id), data).catch(fail("Modificarea")); toast("Modificările au fost salvate");
   } else {
     const k = fType === "out" ? invKindOf(fCat) : null;
-    let invId = null, invName = "";
+    let invId = null, invName = "", pfTx = null;
     if (k) {
       const pick = $("#fInv").value;
-      invId = bumpInv(pick, amount, k, fCat);
-      invName = ((H.inv||[]).find(x=>x.id===invId)||{}).name || fCat;
+      if (pick === "__pf") {
+        const sym = $("#fCoin").value.trim().toUpperCase(), q = parseAmt($("#fCoinQty").value);
+        if (!sym || !(q > 0)) { $("#fErr").textContent = "Scrie moneda și câte monede ai cumpărat."; return; }
+        pfTx = pfAddTx({ type:"buy", asset:sym, qty:q, usd: Math.round(amount / pfRate() * 100)/100, date, platform:"", note:"din Bani" });
+        invName = "Portofoliu crypto";
+      } else {
+        invId = bumpInv(pick, amount, k, fCat);
+        invName = ((H.inv||[]).find(x=>x.id===invId)||{}).name || fCat;
+      }
     }
-    addDoc(col, { ...data, by:user.uid, created:Date.now(), ...(invId ? { invId } : {}) }).catch(fail("Salvarea"));
-    toast(invId ? `Salvat și adăugat la investiția ${invName}` : (fType==="out"?"Cheltuială salvată":"Încasare salvată"));
+    addDoc(col, { ...data, by:user.uid, created:Date.now(), ...(invId ? { invId } : {}), ...(pfTx ? { pfTx } : {}) }).catch(fail("Salvarea"));
+    toast(invName ? `Salvat și adăugat la ${invName}` : (fType==="out"?"Cheltuială salvată":"Încasare salvată"));
   }
   const d = new Date(date+"T12:00");
   const nv = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -767,8 +847,9 @@ $("#txForm").addEventListener("submit", e => {
   if (monthKey(nv) !== monthKey(view)) { view = nv; subMonth(); }
 });
 $("#fDelete").onclick = () => {
-  if (!editing || !confirm(editing.invId ? "Ștergi această tranzacție? Suma se scade și din investiție." : "Ștergi această tranzacție? Dispare de pe ambele telefoane.")) return;
+  if (!editing || !confirm(editing.invId || editing.pfTx ? "Ștergi această tranzacție? Suma se scade și din investiție." : "Ștergi această tranzacție? Dispare de pe ambele telefoane.")) return;
   if (editing.invId) bumpInv(editing.invId, -editing.amount);
+  if (editing.pfTx) pfDelTx(editing.pfTx);
   deleteDoc(doc(db, "households", hid, "tx", editing.id)).catch(fail("Ștergerea"));
   txD.close(); toast("Tranzacție ștearsă");
 };
@@ -841,7 +922,7 @@ $("#expCsv").onclick = async () => {
 $("#expJson").onclick = async () => {
   try {
     const all = await allTx();
-    offerFile(`backup-bani-${ymd(new Date())}.json`, JSON.stringify({ currency:H.currency, cats:H.cats, inv:H.inv||[], tx:all }, null, 2), "application/json");
+    offerFile(`backup-bani-${ymd(new Date())}.json`, JSON.stringify({ currency:H.currency, cats:H.cats, inv:H.inv||[], crypto:H.crypto||null, tx:all }, null, 2), "application/json");
   } catch (err) { fail("Backupul")(err); }
 };
 $("#impJson").onclick = () => $("#impFile").click();
@@ -874,12 +955,21 @@ const pctTxt = (v, base) => base > 0 ? `${v>=0?"+":"−"}${nf.format(Math.abs(v)
 function invView(){
   const invs = [...(H.inv || [])].sort((a,b)=>(+b.value||0)-(+a.value||0));
   const addBtn = `<button type="button" class="ghost add-inv" id="addInv">+ Adaugă investiție</button>`;
-  if (!invs.length) return `<div class="empty"><strong>Nicio investiție încă</strong>Adaugă contul de bursă sau crypto cu valoarea de acum. O actualizați voi când se schimbă piața.</div>${addBtn}`;
-  const tot = invs.reduce((a,i)=>a+(+i.value||0),0), dep = invs.reduce((a,i)=>a+(+i.invested||0),0), g = tot - dep;
-  const byKind = k => invs.filter(i=>i.kind===k).reduce((a,i)=>a+(+i.value||0),0);
+  const pfBtn = `<button type="button" class="ghost add-inv" id="openPf">₿ Portofoliu crypto</button>`;
+  const P = pfHas() ? pfCalc() : null;
+  if (!invs.length && !P) return `<div class="empty"><strong>Nicio investiție încă</strong>Adaugă contul de bursă sau crypto cu valoarea de acum. O actualizați voi când se schimbă piața.</div>${addBtn}${pfBtn}`;
+  const tot = invs.reduce((a,i)=>a+(+i.value||0),0) + (P ? P.value : 0), dep = invs.reduce((a,i)=>a+(+i.invested||0),0) + (P ? P.cost : 0), g = tot - dep;
+  const byKind = k => invs.filter(i=>i.kind===k).reduce((a,i)=>a+(+i.value||0),0) + (k==="crypto" && P ? P.value : 0);
   let html = `<div class="inv-sum"><div class="lbl">Total în investiții</div><div class="big">${nf.format(tot)} <small style="font-size:.45em;color:var(--muted)">${esc(cur())}</small></div>
     ${dep>0?`<div class="gain ${g>=0?"up":"down"}">${pctTxt(g,dep)} față de cât ați depus</div>`:""}
     <div class="inv-kinds"><div>Bursă<b>${nf.format(byKind("bursa"))}</b></div><div>Crypto<b>${nf.format(byKind("crypto"))}</b></div></div></div>`;
+  if (P) {
+    const gp = P.value - P.cost;
+    html += `<button class="tx inv crypto" data-pf="1">
+      <span class="ic">₿</span>
+      <span class="meta"><span class="cat">Portofoliu crypto</span><span class="note">${P.rows.filter(r=>r.qty>1e-9).length} monede · prețuri live</span></span>
+      <span style="text-align:right"><span class="amt" style="display:block">${nf.format(P.value)}</span>${P.cost>0?`<span class="note ${gp>=0?"up":"down"}" style="font-size:.78rem">${gp>=0?"+":"−"}${nf0.format(Math.abs(gp/P.cost*100))}%</span>`:""}</span></button>`;
+  }
   for (const i of invs) {
     const gi = (+i.value||0) - (+i.invested||0);
     const who = i.owner ? nameOf(i.owner) : "Comun";
@@ -888,7 +978,7 @@ function invView(){
       <span class="meta"><span class="cat">${esc(i.name)}</span><span class="note">${esc(KIND[i.kind]||"")} · ${esc(who)}</span></span>
       <span style="text-align:right"><span class="amt" style="display:block">${nf.format(+i.value||0)}</span>${+i.invested>0?`<span class="note ${gi>=0?"up":"down"}" style="font-size:.78rem">${gi>=0?"+":"−"}${nf0.format(Math.abs(gi/(+i.invested)*100))}%</span>`:""}</span></button>`;
   }
-  return html + addBtn;
+  return html + addBtn + (P ? "" : pfBtn);
 }
 const invD = $("#invDialog");
 let invEditing = null, iKind = "bursa";
@@ -941,6 +1031,175 @@ $("#iDelete").onclick = () => {
   if (!invEditing || !confirm(`Ștergi „${invEditing.name}” din investiții? Tranzacțiile deja notate rămân.`)) return;
   saveInvs((H.inv||[]).filter(x=>x.id!==invEditing.id)); invD.close(); toast("Investiție ștearsă");
 };
+
+/* ---------- portofoliu crypto (prețuri live de pe CoinGecko) ---------- */
+const CG_IDS = { ARB:"arbitrum", BTC:"bitcoin", ETH:"ethereum", DOT:"polkadot", FIL:"filecoin", FLR:"flare-networks", GRT:"the-graph", NEAR:"near",
+  ONDO:"ondo-finance", OP:"optimism", PERP:"perpetual-protocol", POL:"polygon-ecosystem-token", PYTH:"pyth-network", RENDER:"render-token",
+  SEI:"sei-network", SOL:"solana", SUI:"sui", SUPER:"superfarm", TIA:"celestia", BEAM:"beam-2", TRUMP:"official-trump", USDT:"tether", USDC:"usd-coin",
+  XRP:"ripple", ADA:"cardano", DOGE:"dogecoin", LINK:"chainlink", AVAX:"avalanche-2", BNB:"binancecoin" };
+const pfAssets = () => (H && H.crypto && H.crypto.assets) || [];
+const pfHas = () => pfAssets().length > 0;
+const vsCur = () => ({ "lei":"ron", "€":"eur", "$":"usd" })[cur()] || "ron";
+let live = {}, liveRate = 0, liveAt = 0, liveBusy = false;
+try { const c = JSON.parse(localStorage.getItem("bani-live") || "null"); if (c && c.vs === vsCur()) { live = c.live; liveRate = c.rate; liveAt = c.at; } } catch(e){}
+const pfRate = () => liveRate || (H && H.crypto && H.crypto.rate) || (vsCur()==="usd" ? 1 : vsCur()==="eur" ? 0.92 : 4.6);
+const usdF = (n,d=2) => (n<0?"−":"") + "$" + Math.abs(n).toLocaleString("ro-RO",{minimumFractionDigits:d,maximumFractionDigits:d});
+const qtyF = n => n.toLocaleString("ro-RO",{maximumFractionDigits:6});
+function pfCalc(){
+  const st = H.crypto || { assets:[], txs:[] }, rate = pfRate(), rows = [];
+  for (const a of st.assets) {
+    const txs = (st.txs||[]).filter(t=>t.asset===a.sym).sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+    let qty = 0, cost = 0;
+    for (const t of txs) {
+      if (t.type === "sell") { const avg = qty>0 ? cost/qty : 0; cost -= avg*t.qty; qty -= t.qty; }
+      else { qty += t.qty; cost += t.usd; }
+    }
+    const L = live[a.sym], priceUsd = L && L.usd ? L.usd : (+a.price || 0);
+    rows.push({ a, txs, qty, costUsd: cost, priceUsd, isLive: !!(L && L.usd), valueUsd: qty*priceUsd, value: qty*priceUsd*rate, cost: cost*rate });
+  }
+  rows.sort((x,y)=>y.valueUsd-x.valueUsd);
+  return { rows, value: rows.reduce((s,r)=>s+r.value,0), cost: rows.reduce((s,r)=>s+r.cost,0),
+    valueUsd: rows.reduce((s,r)=>s+r.valueUsd,0), costUsd: rows.reduce((s,r)=>s+r.costUsd,0) };
+}
+async function cgSearch(sym){
+  try {
+    const r = await fetch("https://api.coingecko.com/api/v3/search?query=" + encodeURIComponent(sym)); const j = await r.json();
+    const m = (j.coins||[]).filter(c => String(c.symbol).toUpperCase() === sym).sort((a,b)=>(a.market_cap_rank||1e9)-(b.market_cap_rank||1e9))[0];
+    return m ? m.id : null;
+  } catch(e){ return null; }
+}
+async function loadPrices(force){
+  if (!pfHas() || liveBusy) return;
+  if (!force && Date.now() - liveAt < 10*60*1000) return;
+  liveBusy = true;
+  try {
+    const st = structuredClone(H.crypto); let fixed = false;
+    for (const a of st.assets) if (!a.cgId && a.cgId !== "") { a.cgId = CG_IDS[a.sym] || await cgSearch(a.sym) || ""; fixed = true; }
+    const ids = [...new Set(st.assets.map(a=>a.cgId).filter(Boolean).concat("tether"))];
+    const vs = vsCur(), res = {};
+    for (let i = 0; i < ids.length; i += 40) {
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.slice(i,i+40).join(",")}&vs_currencies=usd,${vs}`);
+      if (!r.ok) throw new Error("http " + r.status);
+      Object.assign(res, await r.json());
+    }
+    // id-uri greșite: încearcă o dată căutarea după simbol
+    for (const a of st.assets) if (a.cgId && !res[a.cgId] && !a.cgChecked) {
+      a.cgChecked = true; fixed = true;
+      const id = await cgSearch(a.sym);
+      if (id && id !== a.cgId) { a.cgId = id; try { const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd,${vs}`); Object.assign(res, await r.json()); } catch(e){} }
+    }
+    const t = res.tether; liveRate = t && t.usd ? t[vs] / t.usd : pfRate();
+    live = {};
+    for (const a of st.assets) { const p = res[a.cgId]; if (p && p.usd) { live[a.sym] = { usd:p.usd }; a.price = p.usd; } }
+    liveAt = Date.now();
+    try { localStorage.setItem("bani-live", JSON.stringify({ vs, live, rate: liveRate, at: liveAt })); } catch(e){}
+    // salvează și în cont prețurile, ca să le vadă și celălalt telefon offline (cel mult o dată pe oră)
+    const last = Date.parse(st.pricesUpdatedAt || 0) || 0;
+    if (fixed || force || Date.now() - last > 60*60*1000) {
+      st.pricesUpdatedAt = new Date().toISOString(); st.rate = liveRate;
+      H.crypto = st; updateDoc(hRef(), { crypto: st }).catch(fail("Prețurile"));
+    }
+  } catch(e) { console.warn(e); if (force) toast("Nu am putut lua prețurile acum. Încearcă mai târziu."); }
+  liveBusy = false;
+  render(); if ($("#pfDialog").open) renderPf();
+}
+function pfSave(st){ H.crypto = st; updateDoc(hRef(), { crypto: st }).catch(fail("Portofoliul")); render(); if ($("#pfDialog").open) renderPf(); }
+function pfAddTx(t){
+  const st = structuredClone(H.crypto || { assets:[], txs:[] });
+  if (!st.assets.find(a=>a.sym===t.asset)) { st.assets.push({ sym:t.asset, name:t.asset, price: t.qty ? t.usd/t.qty : 0 }); liveAt = 0; }
+  const id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  st.txs.push({ id, ...t }); pfSave(st); setTimeout(()=>loadPrices(false), 300);
+  return id;
+}
+function pfEditUsd(id, lei){
+  const st = structuredClone(H.crypto || { assets:[], txs:[] }), t = st.txs.find(x=>x.id===id); if (!t) return;
+  t.usd = Math.round(lei / pfRate() * 100)/100; pfSave(st);
+}
+function pfDelTx(id){
+  const st = structuredClone(H.crypto || { assets:[], txs:[] });
+  st.txs = st.txs.filter(x=>x.id!==id);
+  const used = new Set(st.txs.map(t=>t.asset)); st.assets = st.assets.filter(a=>used.has(a.sym));
+  pfSave(st);
+}
+const pfD = $("#pfDialog"); let pfOpen = new Set();
+function openPf(){ renderPf(); pfD.showModal(); loadPrices(false); }
+function renderPf(){
+  if (!pfHas()) {
+    $("#pfBody").innerHTML = `<div class="empty"><strong>Portofoliul e gol</strong>Importă fișierul cu portofoliul din Claude sau adaugă prima tranzacție.</div>`;
+    $("#pfImport").hidden = false; return;
+  }
+  $("#pfImport").hidden = true;
+  const P = pfCalc(), g = P.value - P.cost;
+  const when = liveAt ? new Date(liveAt) : (H.crypto.pricesUpdatedAt ? new Date(H.crypto.pricesUpdatedAt) : null);
+  let h = `<div class="inv-sum" style="margin-top:0"><div class="lbl">Valoare acum</div>
+    <div class="big">${nf.format(P.value)} <small style="font-size:.45em;color:var(--muted)">${esc(cur())}</small></div>
+    <div class="gain ${g>=0?"up":"down"}">${pctTxt(g,P.cost)}</div>
+    <div class="inv-kinds"><div>În dolari<b>${usdF(P.valueUsd)}</b></div><div>Investit<b>${usdF(P.costUsd)}</b></div></div></div>
+    <p class="pf-meta">${when ? `Prețuri din ${when.getDate()} ${MONTHS[when.getMonth()].toLowerCase()}, ${String(when.getHours()).padStart(2,"0")}:${String(when.getMinutes()).padStart(2,"0")}` : "Prețuri încă neîncărcate"} · 1 USD = ${pfRate().toLocaleString("ro-RO",{maximumFractionDigits:4})} ${esc(cur())}</p><div class="pf-list">`;
+  const card = r => {
+    const gp = r.valueUsd - r.costUsd, open = pfOpen.has(r.a.sym);
+    let x = `<button class="coin" data-coin="${esc(r.a.sym)}"><span class="sy">${esc(r.a.sym.slice(0,5))}</span>
+      <span class="nm"><b>${esc(r.a.name || r.a.sym)}</b><small>${qtyF(r.qty)} ${esc(r.a.sym)}${r.isLive?"":" · preț salvat"}</small></span>
+      <span class="vl">${nf.format(r.value)}<small class="${gp>=0?"up":"down"}">${r.costUsd>0?`${gp>=0?"+":"−"}${nf0.format(Math.abs(gp/r.costUsd*100))}%`:""}</small></span></button>`;
+    if (open) x += `<div class="coin-tx">` + r.txs.slice().reverse().map(t => `<div class="r"><span>${t.type==="sell"?"Vânzare":"Cumpărare"} ${qtyF(t.qty)} · ${usdF(t.usd)}<br><small style="color:var(--muted)">${esc(t.date)}${t.platform?", "+esc(t.platform):""}</small></span><button type="button" data-ctx="${esc(t.id)}">Modifică</button></div>`).join("") + `</div>`;
+    return x;
+  };
+  const main = P.rows.filter(r => r.valueUsd >= 1), dust = P.rows.filter(r => r.valueUsd < 1);
+  h += main.map(card).join("") + `</div>`;
+  if (dust.length) h += `<details style="margin-top:6px"><summary class="hint" style="cursor:pointer">Resturi mici (${dust.length}): ${dust.map(r=>esc(r.a.sym)).join(", ")}</summary><div class="pf-list">${dust.map(card).join("")}</div></details>`;
+  $("#pfBody").innerHTML = h;
+}
+$("#pfBody").addEventListener("click", e => {
+  const c = e.target.closest("[data-coin]"); if (c) { const s = c.dataset.coin; pfOpen.has(s) ? pfOpen.delete(s) : pfOpen.add(s); renderPf(); return; }
+  const t = e.target.closest("[data-ctx]"); if (t) openCtx((H.crypto.txs||[]).find(x=>x.id===t.dataset.ctx));
+});
+$("#pfRefresh").onclick = () => { toast("Iau prețurile…"); loadPrices(true); };
+$("#pfImport").onclick = () => $("#pfFile").click();
+$("#pfFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text()), src = d.data || d;
+    if (!Array.isArray(src.assets) || !Array.isArray(src.txs)) throw new Error("format");
+    const assets = src.assets.filter(a=>a && a.sym).map(a => ({ sym:String(a.sym).toUpperCase(), name:String(a.name||a.sym).slice(0,40), price:+a.price||0, cgId: a.cgId || CG_IDS[String(a.sym).toUpperCase()] || undefined }));
+    const txs = src.txs.filter(t => t && t.asset && +t.qty > 0).map(t => ({ id:String(t.id||("t"+Math.random().toString(36).slice(2))), asset:String(t.asset).toUpperCase(), type:t.type==="sell"?"sell":"buy", date:String(t.date||""), qty:+t.qty, usd:+t.usd||0, platform:String(t.platform||"").slice(0,40), note:String(t.note||"").slice(0,80) }));
+    assets.forEach(a => { if (a.cgId === undefined) delete a.cgId; });
+    if (pfHas() && !confirm("Înlocuiești portofoliul actual cu cel din fișier?")) return;
+    liveAt = 0; pfSave({ assets, txs, pricesUpdatedAt: src.pricesUpdatedAt || null });
+    toast(`Am importat ${assets.length} monede și ${txs.length} tranzacții`); loadPrices(true);
+  } catch(err) { toast("Fișierul nu e un portofoliu valid."); }
+});
+const ctxD = $("#ctxDialog"); let ctxEditing = null, cType = "buy";
+function setCType(t){ cType = t; ctxD.querySelectorAll("[data-ctype]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.ctype===t)); }
+ctxD.querySelectorAll("[data-ctype]").forEach(b => b.onclick = () => setCType(b.dataset.ctype));
+function openCtx(t){
+  ctxEditing = t || null;
+  $("#cSymList").innerHTML = pfAssets().map(a=>`<option value="${esc(a.sym)}">`).join("");
+  $("#ctxTitle").textContent = t ? "Modifică tranzacția" : "Tranzacție crypto";
+  setCType(t ? t.type : "buy");
+  $("#cSym").value = t ? t.asset : ""; $("#cDate").value = t ? t.date : ymd(new Date());
+  $("#cQty").value = t ? String(t.qty).replace(".",",") : ""; $("#cUsd").value = t ? String(t.usd).replace(".",",") : "";
+  $("#cPlat").value = t ? (t.platform||"") : ""; $("#cNote").value = t ? (t.note||"") : "";
+  $("#cErr").textContent = ""; $("#cDelete").hidden = !t; $("#cHint").hidden = !!t;
+  ctxD.showModal();
+}
+$("#pfAdd").onclick = () => openCtx(null);
+$("#ctxForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const sym = $("#cSym").value.trim().toUpperCase(), q = parseFloat(String($("#cQty").value).replace(/\s/g,"").replace(",",".")), u = parseAmt($("#cUsd").value);
+  if (!sym || !(q > 0) || !(u >= 0)) { $("#cErr").textContent = "Completează moneda, cantitatea și totalul în USD."; return; }
+  const t = { type:cType, asset:sym, qty:q, usd:u, date:$("#cDate").value || ymd(new Date()), platform:$("#cPlat").value.trim(), note:$("#cNote").value.trim() };
+  if (ctxEditing) {
+    const st = structuredClone(H.crypto); const k = st.txs.findIndex(x=>x.id===ctxEditing.id);
+    if (k >= 0) st.txs[k] = { ...st.txs[k], ...t };
+    if (!st.assets.find(a=>a.sym===sym)) st.assets.push({ sym, name:sym, price: q ? u/q : 0 });
+    pfSave(st);
+  } else pfAddTx(t);
+  pfOpen.add(sym); ctxD.close(); toast("Tranzacție salvată");
+});
+$("#cDelete").onclick = () => { if (!ctxEditing || !confirm("Ștergi tranzacția din portofoliu?")) return; pfDelTx(ctxEditing.id); ctxD.close(); };
+$("#fInv").addEventListener("change", coinBox);
+setInterval(() => { if (!document.hidden && filter === "inv") loadPrices(false); }, 60*1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && filter === "inv") loadPrices(false); });
 
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
 document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
