@@ -983,7 +983,7 @@ function invView(){
       <span class="meta"><span class="cat">${esc(i.name)}</span><span class="note">${esc(KIND[i.kind]||"")} · ${esc(who)}</span></span>
       <span style="text-align:right"><span class="amt" style="display:block">${nf.format(+i.value||0)}</span>${+i.invested>0?`<span class="note ${gi>=0?"up":"down"}" style="font-size:.78rem">${gi>=0?"+":"−"}${nf0.format(Math.abs(gi/(+i.invested)*100))}%</span>`:""}</span></button>`;
   }
-  return html + addBtn;
+  return html + addBtn + (P ? "" : `<p class="hint" style="text-align:center;margin-top:10px"><button type="button" class="link" id="openPf">Importă portofoliul crypto din fișier</button></p>`);
 }
 const invD = $("#invDialog");
 let invEditing = null, iKind = "bursa";
@@ -1134,9 +1134,9 @@ function openPf(){ renderPf(); pfD.showModal(); loadPrices(false); }
 function renderPf(){
   if (!pfHas()) {
     $("#pfBody").innerHTML = `<div class="empty"><strong>Portofoliul e gol</strong>Importă fișierul cu portofoliul din Claude sau adaugă prima tranzacție.</div>`;
-    $("#pfImport").hidden = false; return;
+    $("#pfImport").hidden = false; $("#pfImport").textContent = "Importă portofoliul din Claude"; return;
   }
-  $("#pfImport").hidden = true;
+  $("#pfImport").hidden = false; $("#pfImport").textContent = "Înlocuiește din fișier";
   const P = pfCalc(), g = P.value - P.cost;
   const when = liveAt ? new Date(liveAt) : (H.crypto.pricesUpdatedAt ? new Date(H.crypto.pricesUpdatedAt) : null);
   let h = `<div class="inv-sum" style="margin-top:0"><div class="lbl">Valoare acum</div>
@@ -1171,7 +1171,7 @@ $("#pfFile").addEventListener("change", async e => {
     const assets = src.assets.filter(a=>a && a.sym).map(a => ({ sym:String(a.sym).toUpperCase(), name:String(a.name||a.sym).slice(0,40), price:+a.price||0, cgId: a.cgId || CG_IDS[String(a.sym).toUpperCase()] || undefined }));
     const txs = src.txs.filter(t => t && t.asset && +t.qty > 0).map(t => ({ id:String(t.id||("t"+Math.random().toString(36).slice(2))), asset:String(t.asset).toUpperCase(), type:t.type==="sell"?"sell":"buy", date:String(t.date||""), qty:+t.qty, usd:+t.usd||0, platform:String(t.platform||"").slice(0,40), note:String(t.note||"").slice(0,80) }));
     assets.forEach(a => { if (a.cgId === undefined) delete a.cgId; });
-    if (pfHas() && !confirm("Înlocuiești portofoliul actual cu cel din fișier?")) return;
+    if (pfHas() && !confirm(`Înlocuiești portofoliul actual cu cel din fișier (${assets.length} monede, ${txs.length} tranzacții)? Cel de acum se șterge.`)) return;
     liveAt = 0; pfSave({ assets, txs, pricesUpdatedAt: src.pricesUpdatedAt || null });
     toast(`Am importat ${assets.length} monede și ${txs.length} tranzacții`); loadPrices(true);
   } catch(err) { toast("Fișierul nu e un portofoliu valid."); }
