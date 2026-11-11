@@ -387,13 +387,15 @@ window.FIREBASE_CONFIG = {
     </div>
     <div class="row3">
       <div class="field"><label for="cQty">Cantitate</label><input id="cQty" inputmode="decimal" placeholder="0"></div>
-      <div class="field"><label for="cUsd">Total în USD</label><input id="cUsd" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label for="cUsd">Cât ai plătit în total</label>
+        <div style="display:flex;gap:6px"><input id="cUsd" inputmode="decimal" placeholder="0" style="min-width:0"><select id="cUnit" style="width:auto;padding:11px 8px" aria-label="Monedă"><option value="lei">lei</option><option value="usd">USD</option></select></div></div>
     </div>
+    <p class="hint" id="cPx" style="margin:0"></p>
     <div class="row3">
       <div class="field"><label for="cPlat">Platformă</label><input id="cPlat" list="cPlatList" placeholder="Revolut, Bybit…"><datalist id="cPlatList"><option>Revolut</option><option>Bybit</option><option>Binance</option></datalist></div>
       <div class="field"><label for="cNote">Notă</label><input id="cNote" placeholder="opțional" maxlength="80"></div>
     </div>
-    <p class="hint" id="cHint" style="margin:0">Asta notează doar moneda în portofoliu. Dacă ai plătit din banii voastri, notează și cheltuiala la categoria Crypto.</p>
+    <label class="hint" id="cLinkBox" style="margin:0;display:flex;gap:10px;align-items:flex-start;color:var(--ink)"><input type="checkbox" id="cLink" checked style="width:20px;height:20px;margin:1px 0 0;accent-color:#4D7C0F;flex:none"><span id="cLinkTxt">Notează și în Bani, ca cheltuială la Crypto (se scade din banii tăi)</span></label>
     <p class="err" id="cErr"></p>
     <button type="submit" class="primary" id="cSave">Salvează</button>
     <button type="button" class="ghost danger" id="cDelete" hidden>Șterge tranzacția</button>
@@ -825,20 +827,22 @@ $("#txForm").addEventListener("submit", e => {
     updateDoc(doc(col, editing.id), data).catch(fail("Modificarea")); toast("Modificările au fost salvate");
   } else {
     const k = fType === "out" ? invKindOf(fCat) : null;
-    let invId = null, invName = "", pfTx = null;
+    let invId = null, invName = "", pfTx = null, baniRef = null;
     if (k) {
       const pick = $("#fInv").value;
       if (pick === "__pf") {
         const sym = $("#fCoin").value.trim().toUpperCase(), q = parseAmt($("#fCoinQty").value);
         if (!sym || !(q > 0)) { $("#fErr").textContent = "Scrie moneda și câte monede ai cumpărat."; return; }
-        pfTx = pfAddTx({ type:"buy", asset:sym, qty:q, usd: Math.round(amount / pfRate() * 100)/100, date, platform:"", note:"din Bani" });
+        baniRef = doc(col);
+        pfTx = pfAddTx({ type:"buy", asset:sym, qty:q, usd: Math.round(amount / pfRate() * 100)/100, date, platform:"", note:"din Bani", baniTx: baniRef.id });
         invName = "Portofoliu crypto";
       } else {
         invId = bumpInv(pick, amount, k, fCat);
         invName = ((H.inv||[]).find(x=>x.id===invId)||{}).name || fCat;
       }
     }
-    addDoc(col, { ...data, by:user.uid, created:Date.now(), ...(invId ? { invId } : {}), ...(pfTx ? { pfTx } : {}) }).catch(fail("Salvarea"));
+    const rec = { ...data, by:user.uid, created:Date.now(), ...(invId ? { invId } : {}), ...(pfTx ? { pfTx } : {}) };
+    (baniRef ? setDoc(baniRef, rec) : addDoc(col, rec)).catch(fail("Salvarea"));
     toast(invName ? `Salvat și adăugat la ${invName}` : (fType==="out"?"Cheltuială salvată":"Încasare salvată"));
   }
   const d = new Date(date+"T12:00");
@@ -849,7 +853,7 @@ $("#txForm").addEventListener("submit", e => {
 $("#fDelete").onclick = () => {
   if (!editing || !confirm(editing.invId || editing.pfTx ? "Ștergi această tranzacție? Suma se scade și din investiție." : "Ștergi această tranzacție? Dispare de pe ambele telefoane.")) return;
   if (editing.invId) bumpInv(editing.invId, -editing.amount);
-  if (editing.pfTx) pfDelTx(editing.pfTx);
+  if (editing.pfTx) pfDelTx(editing.pfTx, true);
   deleteDoc(doc(db, "households", hid, "tx", editing.id)).catch(fail("Ștergerea"));
   txD.close(); toast("Tranzacție ștearsă");
 };
@@ -1115,8 +1119,10 @@ function pfEditUsd(id, lei){
   const st = structuredClone(H.crypto || { assets:[], txs:[] }), t = st.txs.find(x=>x.id===id); if (!t) return;
   t.usd = Math.round(lei / pfRate() * 100)/100; pfSave(st);
 }
-function pfDelTx(id){
+function pfDelTx(id, fromBani){
   const st = structuredClone(H.crypto || { assets:[], txs:[] });
+  const old = st.txs.find(x=>x.id===id);
+  if (!fromBani && old && old.baniTx) deleteDoc(doc(db, "households", hid, "tx", old.baniTx)).catch(fail("Ștergerea din Bani"));
   st.txs = st.txs.filter(x=>x.id!==id);
   const used = new Set(st.txs.map(t=>t.asset)); st.assets = st.assets.filter(a=>used.has(a.sym));
   pfSave(st);
@@ -1169,7 +1175,7 @@ $("#pfFile").addEventListener("change", async e => {
   } catch(err) { toast("Fișierul nu e un portofoliu valid."); }
 });
 const ctxD = $("#ctxDialog"); let ctxEditing = null, cType = "buy";
-function setCType(t){ cType = t; ctxD.querySelectorAll("[data-ctype]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.ctype===t)); }
+function setCType(t){ cType = t; if (typeof linkTxt === "function" && $("#cLinkTxt")) linkTxt(); ctxD.querySelectorAll("[data-ctype]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.ctype===t)); }
 ctxD.querySelectorAll("[data-ctype]").forEach(b => b.onclick = () => setCType(b.dataset.ctype));
 function openCtx(t){
   ctxEditing = t || null;
@@ -1178,25 +1184,69 @@ function openCtx(t){
   setCType(t ? t.type : "buy");
   $("#cSym").value = t ? t.asset : ""; $("#cDate").value = t ? t.date : ymd(new Date());
   $("#cQty").value = t ? String(t.qty).replace(".",",") : ""; $("#cUsd").value = t ? String(t.usd).replace(".",",") : "";
+  $("#cUnit").value = t ? "usd" : "lei"; $("#cUnit").options[0].textContent = cur(); ctxPx();
   $("#cPlat").value = t ? (t.platform||"") : ""; $("#cNote").value = t ? (t.note||"") : "";
-  $("#cErr").textContent = ""; $("#cDelete").hidden = !t; $("#cHint").hidden = !!t;
+  $("#cErr").textContent = ""; $("#cDelete").hidden = !t;
+  $("#cLinkBox").hidden = !!t; $("#cLink").checked = true; linkTxt();
   ctxD.showModal();
 }
 $("#pfAdd").onclick = () => openCtx(null);
 $("#ctxForm").addEventListener("submit", e => {
   e.preventDefault();
-  const sym = $("#cSym").value.trim().toUpperCase(), q = parseFloat(String($("#cQty").value).replace(/\s/g,"").replace(",",".")), u = parseAmt($("#cUsd").value);
-  if (!sym || !(q > 0) || !(u >= 0)) { $("#cErr").textContent = "Completează moneda, cantitatea și totalul în USD."; return; }
+  const sym = $("#cSym").value.trim().toUpperCase(), q = parseFloat(String($("#cQty").value).replace(/\s/g,"").replace(",",".")), paid = parseAmt($("#cUsd").value);
+  const u = $("#cUnit").value === "lei" ? Math.round(paid / pfRate() * 100)/100 : paid;
+  if (!sym || !(q > 0) || !(u >= 0)) { $("#cErr").textContent = "Completează moneda, cantitatea și cât ai plătit."; return; }
   const t = { type:cType, asset:sym, qty:q, usd:u, date:$("#cDate").value || ymd(new Date()), platform:$("#cPlat").value.trim(), note:$("#cNote").value.trim() };
+  const lei = Math.round(($("#cUnit").value === "lei" ? paid : paid * pfRate()) * 100)/100;
+  let msg = "Tranzacție salvată";
   if (ctxEditing) {
     const st = structuredClone(H.crypto); const k = st.txs.findIndex(x=>x.id===ctxEditing.id);
     if (k >= 0) st.txs[k] = { ...st.txs[k], ...t };
     if (!st.assets.find(a=>a.sym===sym)) st.assets.push({ sym, name:sym, price: q ? u/q : 0 });
     pfSave(st);
+    // ține în sincron și cheltuiala/încasarea legată din Bani
+    if (ctxEditing.baniTx && lei > 0) updateDoc(doc(db, "households", hid, "tx", ctxEditing.baniTx), { amount:lei, date:t.date, note:`${sym} · ${qtyF(q)}` }).catch(fail("Bani"));
+  } else if ($("#cLink").checked && lei > 0) {
+    const ref = doc(collection(db, "households", hid, "tx"));
+    const pfId = pfAddTx({ ...t, baniTx: ref.id });
+    const sell = cType === "sell", side = sell ? "in" : "out";
+    const c = structuredClone(cats()), catName = c[side].find(x => invKindOf(x) === "crypto") || "Crypto";
+    if (!c[side].includes(catName)) { c[side].splice(Math.max(c[side].length-1,0), 0, catName); updateDoc(hRef(), { cats: c }).catch(fail("Categoriile")); }
+    setDoc(ref, { type:side, amount:lei, cat:catName, date:t.date, note:`${sym} · ${qtyF(q)}`, by:user.uid, created:Date.now(), pfTx:pfId }).catch(fail("Bani"));
+    msg = sell ? `Salvat și trecut ca încasare de ${money(lei)}` : `Salvat și trecut ca cheltuială de ${money(lei)}`;
   } else pfAddTx(t);
-  pfOpen.add(sym); ctxD.close(); toast("Tranzacție salvată");
+  pfOpen.add(sym); ctxD.close(); toast(msg);
 });
-$("#cDelete").onclick = () => { if (!ctxEditing || !confirm("Ștergi tranzacția din portofoliu?")) return; pfDelTx(ctxEditing.id); ctxD.close(); };
+// prețul de acum, ca ajutor la completare
+async function livePrice(sym){
+  if (live[sym]) return live[sym].usd;
+  const a = pfAssets().find(x=>x.sym===sym);
+  const id = (a && a.cgId) || CG_IDS[sym] || await cgSearch(sym);
+  if (!id) return a ? +a.price || 0 : 0;
+  try { const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`); const j = await r.json(); const v = j[id] && j[id].usd; if (v) live[sym] = { usd:v }; return v || 0; } catch(e){ return a ? +a.price || 0 : 0; }
+}
+let pxTimer = null;
+function ctxPx(){
+  clearTimeout(pxTimer);
+  pxTimer = setTimeout(async () => {
+    const sym = $("#cSym").value.trim().toUpperCase(), q = parseFloat(String($("#cQty").value).replace(/\s/g,"").replace(",",".")), el = $("#cPx");
+    if (!sym) { el.innerHTML = ""; return; }
+    const pu = await livePrice(sym);
+    if (!pu) { el.innerHTML = `Nu găsesc prețul pentru ${esc(sym)}. Scrie tu cât ai plătit.`; return; }
+    const r = pfRate(), unitLei = $("#cUnit").value === "lei";
+    let h = `Preț acum: ${usdF(pu, pu<1?4:2)} / ${esc(sym)} (≈ ${nf.format(pu*r)} ${esc(cur())})`;
+    if (q > 0) { const tot = unitLei ? pu*q*r : pu*q; h += ` · ${qtyF(q)} ${esc(sym)} ≈ ${unitLei ? nf.format(tot)+" "+esc(cur()) : usdF(tot)} <button type="button" class="link" id="cUseNow">Folosește</button>`;
+      const paid = parseAmt($("#cUsd").value);
+      if (paid > 0) { const per = (unitLei ? paid/r : paid) / q; h += `<br>Ai plătit ${usdF(per, per<1?4:2)} / ${esc(sym)}`; }
+    }
+    el.innerHTML = h;
+    const b = $("#cUseNow"); if (b) b.onclick = () => { $("#cUsd").value = (unitLei ? pu*q*r : pu*q).toFixed(2).replace(".",","); ctxPx(); };
+  }, 350);
+}
+["#cSym","#cQty","#cUsd"].forEach(id => $(id).addEventListener("input", ctxPx));
+$("#cUnit").addEventListener("change", ctxPx);
+function linkTxt(){ $("#cLinkTxt").textContent = cType === "sell" ? "Notează și în Bani, ca încasare la Crypto (banii intră la tine)" : "Notează și în Bani, ca cheltuială la Crypto (se scade din banii tăi)"; }
+$("#cDelete").onclick = () => { if (!ctxEditing || !confirm(ctxEditing.baniTx ? "Ștergi tranzacția din portofoliu? Se șterge și din Bani." : "Ștergi tranzacția din portofoliu?")) return; pfDelTx(ctxEditing.id); ctxD.close(); };
 $("#fInv").addEventListener("change", coinBox);
 setInterval(() => { if (!document.hidden && filter === "inv") loadPrices(false); }, 60*1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && filter === "inv") loadPrices(false); });
