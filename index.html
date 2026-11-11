@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bani">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Bani — bugetul familiei</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💸</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EDF2; --surface:#FFFFFF; --surface-2:#F3F6F9; --ink:#18212E; --muted:#5D6A7A; --line:#D5DDE6;
+  --in:#2B7A57; --in-soft:#DDEFE6; --out:#C2452D; --out-soft:#F7E1DB; --accent:#3557D4; --accent-ink:#FFFFFF;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161F; --surface:#19212D; --surface-2:#202A38; --ink:#E7ECF3; --muted:#9AA7B8; --line:#2C3747;
+    --in:#5BC392; --in-soft:#1C3A2D; --out:#F0806A; --out-soft:#43261F; --accent:#7C97FF; --accent-ink:#0E1420;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161F; --surface:#19212D; --surface-2:#202A38; --ink:#E7ECF3; --muted:#9AA7B8; --line:#2C3747;
+  --in:#5BC392; --in-soft:#1C3A2D; --out:#F0806A; --out-soft:#43261F; --accent:#7C97FF; --accent-ink:#0E1420;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.55;cursor:default}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums}
+.wrap{max-width:560px;margin:0 auto;padding:0 18px 140px}
+
+/* ecrane de intrare */
+.screen{max-width:440px;margin:0 auto;padding:48px 20px 40px}
+.center{min-height:70vh;display:grid;place-items:center;color:var(--muted)}
+.brand{font-family:var(--display);font-weight:800;font-size:3.4rem;letter-spacing:-.03em;line-height:1;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 28px;font-size:1.05rem}
+.stack{display:grid;gap:14px}
+.screen .panel h2{margin-bottom:6px}
+.screen .panel p{margin:0 0 14px;color:var(--muted);font-size:.95rem}
+.switch{text-align:center;color:var(--muted);font-size:.95rem;margin-top:6px}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;word-break:break-all;background:var(--surface-2);padding:10px 12px;border-radius:10px}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:12px 0 8px}
+.month{display:flex;align-items:center;gap:4px}
+.month h1{font-family:var(--display);font-weight:700;font-size:1.15rem;margin:0;min-width:9.5em;text-align:center}
+.icon-btn{border:0;background:transparent;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink)}
+.icon-btn:hover{background:var(--surface-2)}
+.icon-btn svg{width:22px;height:22px}
+.sync{width:8px;height:8px;border-radius:50%;background:var(--in);display:inline-block;margin-right:2px}
+.sync.off{background:var(--muted)}
+
+.hero{padding:18px 0 22px}
+.hero .lbl{color:var(--muted);font-size:.9rem;margin:0 0 2px}
+.balance{font-family:var(--display);font-weight:800;font-size:clamp(2.6rem,12vw,3.6rem);line-height:1;letter-spacing:-.02em;margin:0;font-variant-numeric:tabular-nums}
+.balance small{font-size:.38em;font-weight:600;letter-spacing:0;margin-left:.25em;color:var(--muted)}
+.split{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);margin:18px 0 10px}
+.split span{display:block;height:100%;transition:width .4s ease}
+.split .s-in{background:var(--in)} .split .s-out{background:var(--out)}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.totals div{display:flex;flex-direction:column}
+.totals .t-lbl{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.totals .t-val{font-family:var(--display);font-weight:700;font-size:1.25rem;font-variant-numeric:tabular-nums}
+.totals .right{text-align:right;align-items:flex-end}
+
+.panel{background:var(--surface);border-radius:20px;padding:18px;margin-bottom:14px}
+.panel h2{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0 0 12px}
+.budget-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:.95rem}
+.bar{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;margin-top:8px}
+.bar span{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.bar span.over{background:var(--out)}
+.hint{color:var(--muted);font-size:.88rem;margin:6px 0 0}
+.link{border:0;background:none;color:var(--accent);padding:0;font-weight:600}
+
+.cats{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.cats li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:.95rem}
+.cats .bar{grid-column:1/-1;margin-top:2px}
+.cats .bar span{background:var(--out)}
+.cats.people .bar span{background:var(--accent)}
+.cats .pct{color:var(--muted);font-size:.85rem;margin-left:6px}
+
+.seg{display:flex;background:var(--surface-2);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:transparent;padding:7px 10px;border-radius:9px;font-weight:600;font-size:.9rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(20,30,50,.12)}
+.list-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.list-head h2{margin:0}
+.day{font-size:.82rem;color:var(--muted);margin:16px 0 4px;font-weight:600}
+.tx{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;text-align:left;padding:10px 4px;border-radius:12px}
+.tx:hover{background:var(--surface-2)}
+.tx .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-weight:700;flex:none}
+.tx.in .ic{background:var(--in-soft);color:var(--in)}
+.tx.out .ic{background:var(--out-soft);color:var(--out)}
+.tx .meta{flex:1;min-width:0}
+.tx .cat{font-weight:600;display:block}
+.tx .note{color:var(--muted);font-size:.88rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx .amt{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tx.in .amt{color:var(--in)}
+.empty{text-align:center;padding:26px 8px 10px;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-family:var(--display);font-size:1.1rem;margin-bottom:4px}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:12px 18px calc(16px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 60%,transparent);display:flex;justify-content:center;gap:10px}
+.dock button{flex:1;max-width:262px;border:0;border-radius:16px;padding:15px 12px;font-weight:600;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:8px}
+.dock .b-out{background:var(--out);color:#fff}
+.dock .b-in{background:var(--in);color:#fff}
+.dock svg{width:20px;height:20px}
+
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(560px,100%);max-width:100%;max-height:92vh;border-radius:24px 24px 0 0;margin:auto auto 0}
+dialog::backdrop{background:rgba(10,15,25,.45)}
+@media (min-width:640px){dialog{border-radius:24px;margin:auto}}
+.sheet{padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px));display:grid;gap:16px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center}
+.sheet-head h2{font-family:var(--display);font-size:1.25rem;margin:0}
+.amount-in{display:flex;align-items:baseline;gap:8px;border-bottom:2px solid var(--line);padding-bottom:6px}
+.amount-in:focus-within{border-color:var(--accent)}
+.amount-in input{border:0;background:transparent;font-family:var(--display);font-weight:800;font-size:2.6rem;width:100%;outline:none;font-variant-numeric:tabular-nums;padding:0}
+.amount-in span{color:var(--muted);font-weight:600}
+.field label,.field .flbl{display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px;font-weight:500}
+.field input,.field select{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:11px 12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:.92rem}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.primary{border:0;border-radius:14px;padding:14px;font-weight:600;background:var(--accent);color:var(--accent-ink);font-size:1rem;width:100%}
+.ghost{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--surface);font-weight:600;width:100%}
+.danger{color:var(--out)}
+.err{color:var(--out);font-size:.9rem;margin:0;min-height:1.2em}
+.set-group{display:grid;gap:10px}
+.set-group h3{font-size:.95rem;margin:0;font-family:var(--display)}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px}
+.tag-list span{background:var(--surface-2);border-radius:999px;padding:5px 6px 5px 12px;font-size:.88rem;display:inline-flex;align-items:center;gap:4px}
+.tag-list span.plain{padding:5px 12px}
+.tag-list button{border:0;background:none;width:22px;height:22px;border-radius:50%;color:var(--muted);line-height:1}
+.inline-add{display:flex;gap:8px}
+.inline-add input{flex:1;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:9px 12px;min-width:0}
+.inline-add button{border:0;border-radius:12px;padding:0 14px;background:var(--surface-2);font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ======================================================
+     CONFIGURARE: lipește aici obiectul firebaseConfig
+     din Firebase Console → Project settings → Your apps
+     ====================================================== -->
+<script>
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAhX_gzrunAE-_1SqOSzEIjhu3iKttRIE4",
+  authDomain: "lovemymoney-e17ff.firebaseapp.com",
+  projectId: "lovemymoney-e17ff",
+  storageBucket: "lovemymoney-e17ff.firebasestorage.app",
+  messagingSenderId: "902930817065",
+  appId: "1:902930817065:web:a28a327f478ea0389bbc38"
+};
+</script>
+
+<main id="scr-loading" class="center"><p>Se încarcă…</p></main>
+
+<main id="scr-config" class="screen" hidden>
+  <h1 class="brand">Bani</h1>
+  <p class="lead">Aplicația nu e conectată încă la Firebase.</p>
+  <div class="panel"><p style="margin:0">Deschide fișierul <b>index.html</b>, caută <b>FIREBASE_CONFIG</b> în partea de sus și înlocuiește valorile cu cele din proiectul tău Firebase.</p></div>
+</main>
+
+<main id="scr-auth" class="screen" hidden>
+  <h1 class="brand">Bani</h1>
+  <p class="lead">Același buget, pe telefonul tău și al partenerului.</p>
+  <form class="stack" id="authForm" novalidate>
+    <div class="field" id="nameField" hidden><label for="aName">Cum te cheamă</label><input id="aName" autocomplete="given-name" maxlength="30"></div>
+    <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" inputmode="email"></div>
+    <div class="field"><label for="aPass">Parolă</label><input id="aPass" type="password" autocomplete="current-password" minlength="6"></div>
+    <p class="err" id="aErr"></p>
+    <button class="primary" id="aSubmit" type="submit">Intră în cont</button>
+    <p class="switch"><span id="aSwitchTxt">Nu ai cont?</span> <button type="button" class="link" id="aSwitch">Creează cont</button></p>
+    <p class="switch"><button type="button" class="link" id="aReset">Am uitat parola</button></p>
+  </form>
+</main>
+
+<main id="scr-setup" class="screen" hidden>
+  <h1 class="brand" id="setupHello">Salut</h1>
+  <p class="lead">Fă un buget comun sau intră în cel creat de partener.</p>
+  <div class="panel" id="joinPanel">
+    <h2>Am primit o invitație</h2>
+    <p>Lipește codul primit sau deschide linkul de invitație.</p>
+    <div class="stack">
+      <input class="code" id="joinCode" placeholder="Codul de invitație" autocomplete="off" style="border:1px solid var(--line);width:100%">
+      <p class="err" id="joinErr"></p>
+      <button class="primary" id="joinBtn">Intră în buget</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Încep un buget nou</h2>
+    <p>După ce îl creezi, trimiți partenerului linkul de invitație din Setări.</p>
+    <div class="stack">
+      <div class="field"><label for="hhName">Numele bugetului</label><input id="hhName" value="Bugetul familiei" maxlength="40"></div>
+      <p class="err" id="createErr"></p>
+      <button class="ghost" id="createBtn">Creează bugetul</button>
+    </div>
+  </div>
+  <p class="switch"><button type="button" class="link" data-signout>Deconectează-te</button></p>
+</main>
+
+<div id="scr-app" hidden>
+<div class="wrap">
+  <header>
+    <div class="month">
+      <button class="icon-btn" id="prev" aria-label="Luna anterioară"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <h1 id="monthLabel">—</h1>
+      <button class="icon-btn" id="next" aria-label="Luna următoare"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <button class="icon-btn" id="openSettings" aria-label="Setări"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+  </header>
+
+  <section class="hero" aria-live="polite">
+    <p class="lbl"><i class="sync" id="syncDot" title="Sincronizat"></i> <span id="hhLabel">Rămas luna aceasta</span></p>
+    <p class="balance" id="balance">0</p>
+    <div class="split" aria-hidden="true"><span class="s-in" id="splitIn"></span><span class="s-out" id="splitOut"></span></div>
+    <div class="totals">
+      <div><span class="t-lbl"><i class="dot" style="background:var(--in)"></i>Încasări</span><span class="t-val" id="totIn">0</span></div>
+      <div class="right"><span class="t-lbl"><i class="dot" style="background:var(--out)"></i>Cheltuieli</span><span class="t-val" id="totOut">0</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="budgetPanel"></section>
+
+  <section class="panel" id="peoplePanel" hidden>
+    <h2>Cine a cheltuit</h2>
+    <ul class="cats people" id="people"></ul>
+  </section>
+
+  <section class="panel" id="catPanel">
+    <h2>Pe ce s-au dus banii</h2>
+    <ul class="cats" id="cats"></ul>
+  </section>
+
+  <section class="panel">
+    <div class="list-head">
+      <h2>Tranzacții</h2>
+      <div class="seg" role="group" aria-label="Filtru">
+        <button data-f="all" aria-pressed="true">Toate</button>
+        <button data-f="out" aria-pressed="false">Cheltuieli</button>
+        <button data-f="in" aria-pressed="false">Încasări</button>
+      </div>
+    </div>
+    <div id="list"></div>
+  </section>
+</div>
+
+<div class="dock">
+  <button class="b-out" data-add="out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>Cheltuială</button>
+  <button class="b-in" data-add="in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Încasare</button>
+</div>
+</div>
+
+<dialog id="txDialog" aria-labelledby="txTitle">
+  <form class="sheet" id="txForm" novalidate>
+    <div class="sheet-head">
+      <h2 id="txTitle">Cheltuială nouă</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="seg" role="group" aria-label="Tip">
+      <button type="button" data-type="out" aria-pressed="true">Cheltuială</button>
+      <button type="button" data-type="in" aria-pressed="false">Încasare</button>
+    </div>
+    <div class="amount-in">
+      <input id="fAmount" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Sumă">
+      <span id="fCur">lei</span>
+    </div>
+    <p class="err" id="fErr"></p>
+    <div class="field"><span class="flbl">Categorie</span><div class="chips" id="fCats"></div></div>
+    <div class="row2">
+      <div class="field"><label for="fDate">Data</label><input type="date" id="fDate"></div>
+      <div class="field"><label for="fNote">Notă</label><input id="fNote" placeholder="opțional" maxlength="80"></div>
+    </div>
+    <p class="hint" id="fBy" hidden></p>
+    <button type="submit" class="primary" id="fSave">Salvează</button>
+    <button type="button" class="ghost danger" id="fDelete" hidden>Șterge tranzacția</button>
+  </form>
+</dialog>
+
+<dialog id="setDialog" aria-labelledby="setTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="setTitle">Setări</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="set-group">
+      <h3>Membri</h3>
+      <div class="tag-list" id="sMembers"></div>
+      <button type="button" class="primary" id="invite">Invită partenerul</button>
+      <p class="hint" style="margin:0">Trimite linkul. Partenerul își face cont și intră automat în acest buget.</p>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="sBudget">Buget lunar cheltuieli</label><input id="sBudget" inputmode="decimal" placeholder="fără buget"></div>
+      <div class="field"><label for="sCur">Monedă</label>
+        <select id="sCur"><option>lei</option><option>€</option><option>$</option></select></div>
+    </div>
+    <div class="set-group">
+      <h3>Categorii de cheltuieli</h3>
+      <div class="tag-list" id="sCatsOut"></div>
+      <div class="inline-add"><input id="sNewOut" placeholder="Categorie nouă" maxlength="24"><button type="button" data-addcat="out">Adaugă</button></div>
+    </div>
+    <div class="set-group">
+      <h3>Categorii de încasări</h3>
+      <div class="tag-list" id="sCatsIn"></div>
+      <div class="inline-add"><input id="sNewIn" placeholder="Categorie nouă" maxlength="24"><button type="button" data-addcat="in">Adaugă</button></div>
+    </div>
+    <div class="set-group">
+      <h3>Export și import</h3>
+      <div class="row2">
+        <button type="button" class="ghost" id="expCsv">Exportă CSV</button>
+        <button type="button" class="ghost" id="expJson">Salvează backup</button>
+      </div>
+      <button type="button" class="ghost" id="impJson">Importă din backup</button>
+      <p class="hint" style="margin:0">Importul adaugă tranzacțiile din fișier, inclusiv dintr-un backup al versiunii vechi.</p>
+      <input type="file" id="impFile" accept=".json,application/json" hidden>
+    </div>
+    <button type="button" class="ghost" data-signout>Deconectează-te</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  sendPasswordResetEmail, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection,
+  setDoc, getDoc, updateDoc, addDoc, deleteDoc, onSnapshot, query, where, getDocs, arrayUnion,
+  writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $ = s => document.querySelector(s);
+const SCREENS = ["loading","config","auth","setup","app"];
+const show = name => SCREENS.forEach(s => $("#scr-"+s).hidden = s !== name);
+
+const cfg = window.FIREBASE_CONFIG || {};
+if (!cfg.apiKey || cfg.apiKey.startsWith("PUNE")) { show("config"); throw new Error("Lipsește configurarea Firebase"); }
+
+const app = initializeApp(cfg);
+// sesiunea rămâne salvată pe telefon: te loghezi o singură dată
+const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
+// cere telefonului să nu șteargă datele aplicației
+try { navigator.storage?.persist?.(); } catch (e) {}
+let db;
+try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+catch (e) { db = initializeFirestore(app, {}); }
+
+const DEFAULT_CATS = {
+  out: ["Mâncare","Locuință","Facturi","Transport","Sănătate","Cumpărături","Ieșiri","Abonamente","Copii","Altele"],
+  in: ["Salariu","Freelance","Cadouri","Vânzări","Altele"]
+};
+const MONTHS = ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+const DAYS = ["duminică","luni","marți","miercuri","joi","vineri","sâmbătă"];
+const nf = new Intl.NumberFormat("ro-RO",{minimumFractionDigits:2,maximumFractionDigits:2});
+const nf0 = new Intl.NumberFormat("ro-RO",{maximumFractionDigits:0});
+
+let user = null, hid = null, H = null, monthTx = [], loadingTx = true;
+let unsubH = null, unsubTx = null;
+let view = new Date(); view.setDate(1);
+let filter = "all", editing = null, fType = "out", fCat = null;
+
+const cur = () => (H && H.currency) || "lei";
+const money = v => nf.format(v) + " " + cur();
+const cats = () => (H && H.cats) || DEFAULT_CATS;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const monthKey = d => ymd(d).slice(0,7);
+const parseAmt = s => { const v = parseFloat(String(s).replace(/\s/g,"").replace(",",".")); return isFinite(v) ? Math.round(v*100)/100 : NaN; };
+const nameOf = uid => (H && H.memberNames && H.memberNames[uid]) || "Cineva";
+const myName = () => (user && (user.displayName || (user.email||"").split("@")[0])) || "Eu";
+
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("show"), 2800);
+}
+const fail = what => err => { console.error(err); toast(`${what}: ${err.code === "permission-denied" ? "nu ai acces" : (err.code || "eroare")}`); };
+
+/* ---------- conectare ---------- */
+const params = new URLSearchParams(location.search);
+const inviteCode = params.get("join");
+let signUpMode = !!inviteCode;
+let creating = false;
+function setAuthMode(){
+  $("#nameField").hidden = !signUpMode;
+  $("#aSubmit").textContent = signUpMode ? "Creează cont" : "Intră în cont";
+  $("#aSwitchTxt").textContent = signUpMode ? "Ai deja cont?" : "Nu ai cont?";
+  $("#aSwitch").textContent = signUpMode ? "Intră în cont" : "Creează cont";
+  $("#aPass").autocomplete = signUpMode ? "new-password" : "current-password";
+  $("#aErr").textContent = "";
+}
+setAuthMode();
+$("#aSwitch").onclick = () => { signUpMode = !signUpMode; setAuthMode(); };
+
+const AUTH_ERR = {
+  "auth/invalid-credential":"Email sau parolă greșită.",
+  "auth/wrong-password":"Email sau parolă greșită.",
+  "auth/user-not-found":"Nu există cont cu acest email.",
+  "auth/email-already-in-use":"Există deja un cont cu acest email. Intră în cont.",
+  "auth/weak-password":"Parola trebuie să aibă cel puțin 6 caractere.",
+  "auth/invalid-email":"Adresa de email nu e validă.",
+  "auth/missing-password":"Scrie parola.",
+  "auth/too-many-requests":"Prea multe încercări. Mai încearcă peste câteva minute.",
+  "auth/network-request-failed":"Nu există conexiune la internet."
+};
+$("#authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const email = $("#aEmail").value.trim(), pass = $("#aPass").value, name = $("#aName").value.trim();
+  if (signUpMode && !name) { $("#aErr").textContent = "Scrie-ți numele, ca partenerul să vadă cine a adăugat."; return; }
+  $("#aSubmit").disabled = true; $("#aErr").textContent = "";
+  try {
+    if (signUpMode) {
+      creating = true;
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      try { await updateProfile(cred.user, { displayName: name }); } catch (e) { console.error(e); }
+      creating = false;
+      await routeUser(cred.user);
+    } else {
+      await signInWithEmailAndPassword(auth, email, pass);
+    }
+  } catch (err) { creating = false; $("#aErr").textContent = AUTH_ERR[err.code] || "Nu a mers: " + err.code; }
+  $("#aSubmit").disabled = false;
+});
+$("#aReset").onclick = async () => {
+  const email = $("#aEmail").value.trim();
+  if (!email) { $("#aErr").textContent = "Scrie emailul mai întâi."; return; }
+  try { await sendPasswordResetEmail(auth, email); $("#aErr").textContent = ""; toast("Ți-am trimis un email pentru resetarea parolei"); }
+  catch (err) { $("#aErr").textContent = AUTH_ERR[err.code] || err.code; }
+};
+document.querySelectorAll("[data-signout]").forEach(b => b.onclick = async () => {
+  $("#setDialog").open && $("#setDialog").close();
+  await signOut(auth);
+});
+
+function cleanup(){ unsubH?.(); unsubTx?.(); unsubH = unsubTx = null; hid = null; H = null; monthTx = []; }
+
+let routing = false;
+async function routeUser(u){
+  if (routing) return; routing = true;
+  try {
+    user = u;
+    const us = await getDoc(doc(db, "users", u.uid));
+    const h = us.exists() ? us.data().householdId : null;
+    if (h) startHousehold(h);
+    else {
+      $("#setupHello").textContent = "Salut, " + myName();
+      if (inviteCode) $("#joinCode").value = inviteCode;
+      show("setup");
+    }
+  } catch (err) { console.error(err); show("setup"); toast("Nu am putut citi profilul: " + (err.code||"eroare")); }
+  routing = false;
+}
+onAuthStateChanged(auth, u => {
+  cleanup();
+  if (!u) { user = null; show("auth"); return; }
+  // la creare cont, numele se setează după; routeUser e apelat explicit atunci
+  if (creating) return;
+  show("loading"); routeUser(u);
+});
+
+/* ---------- bugetul comun ---------- */
+$("#createBtn").onclick = async () => {
+  const name = $("#hhName").value.trim() || "Bugetul familiei";
+  $("#createBtn").disabled = true; $("#createErr").textContent = "";
+  try {
+    const ref = doc(collection(db, "households"));
+    await setDoc(ref, { name, members:[user.uid], memberNames:{[user.uid]: myName()}, budget:0, currency:"lei", cats:DEFAULT_CATS, created:Date.now() });
+    await setDoc(doc(db, "users", user.uid), { householdId: ref.id });
+    startHousehold(ref.id);
+  } catch (err) { $("#createErr").textContent = "Nu am putut crea bugetul: " + (err.code||"eroare"); }
+  $("#createBtn").disabled = false;
+};
+$("#joinBtn").onclick = async () => {
+  let code = $("#joinCode").value.trim();
+  const m = code.match(/[?&]join=([A-Za-z0-9]+)/); if (m) code = m[1];
+  if (!/^[A-Za-z0-9]{10,40}$/.test(code)) { $("#joinErr").textContent = "Codul nu arată corect. Verifică dacă l-ai copiat întreg."; return; }
+  $("#joinBtn").disabled = true; $("#joinErr").textContent = "";
+  try {
+    await updateDoc(doc(db, "households", code), { members: arrayUnion(user.uid), ["memberNames." + user.uid]: myName() });
+    await setDoc(doc(db, "users", user.uid), { householdId: code });
+    history.replaceState(null, "", location.pathname);
+    startHousehold(code);
+    toast("Ai intrat în bugetul comun");
+  } catch (err) {
+    $("#joinErr").textContent = (err.code === "permission-denied" || err.code === "not-found")
+      ? "Codul nu există sau bugetul are deja numărul maxim de membri." : "Nu a mers: " + (err.code||"eroare");
+  }
+  $("#joinBtn").disabled = false;
+};
+
+function startHousehold(id){
+  hid = id;
+  unsubH?.();
+  unsubH = onSnapshot(doc(db, "households", id), { includeMetadataChanges: true }, snap => {
+    if (!snap.exists()) { toast("Bugetul nu mai există"); leaveToSetup(); return; }
+    H = snap.data();
+    $("#syncDot").classList.toggle("off", snap.metadata.fromCache);
+    $("#syncDot").title = snap.metadata.fromCache ? "Offline: modificările se trimit când revine internetul" : "Sincronizat";
+    if ($("#scr-app").hidden) { show("app"); subMonth(); }
+    render();
+    if ($("#setDialog").open) fillSettings(false);
+  }, err => {
+    if (err.code === "permission-denied") { toast("Nu mai ai acces la acest buget"); leaveToSetup(); }
+    else fail("Sincronizare")(err);
+  });
+}
+async function leaveToSetup(){
+  cleanup();
+  try { await setDoc(doc(db, "users", user.uid), { householdId: null }); } catch(e){}
+  $("#setupHello").textContent = "Salut, " + myName();
+  show("setup");
+}
+function subMonth(){
+  unsubTx?.();
+  const mk = monthKey(view);
+  loadingTx = true; monthTx = []; render();
+  const q = query(collection(db, "households", hid, "tx"), where("date", ">=", mk + "-01"), where("date", "<=", mk + "-31"));
+  unsubTx = onSnapshot(q, snap => {
+    monthTx = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadingTx = false; render();
+  }, fail("Tranzacții"));
+}
+
+/* ---------- afișare ---------- */
+function render(){
+  if (!H) return;
+  $("#monthLabel").textContent = `${MONTHS[view.getMonth()]} ${view.getFullYear()}`;
+  $("#hhLabel").textContent = `${H.name || "Buget"}, rămas luna aceasta`;
+  const tx = monthTx;
+  const tin = tx.filter(t=>t.type==="in").reduce((a,t)=>a+t.amount,0);
+  const tout = tx.filter(t=>t.type==="out").reduce((a,t)=>a+t.amount,0);
+  const bal = tin - tout;
+
+  $("#balance").innerHTML = `${bal<0?"−":""}${nf.format(Math.abs(bal))}<small>${esc(cur())}</small>`;
+  $("#balance").style.color = bal < 0 ? "var(--out)" : "var(--ink)";
+  $("#totIn").textContent = money(tin);
+  $("#totOut").textContent = money(tout);
+  const sum = tin + tout;
+  $("#splitIn").style.width = sum ? (tin/sum*100)+"%" : "0";
+  $("#splitOut").style.width = sum ? (tout/sum*100)+"%" : "0";
+
+  const bp = $("#budgetPanel"), budget = +H.budget || 0;
+  if (budget > 0) {
+    const pct = tout / budget * 100, left = budget - tout;
+    bp.innerHTML = `<h2>Buget comun</h2>
+      <div class="budget-row"><span class="num">${money(tout)} din ${money(budget)}</span><span class="num" style="color:${left<0?"var(--out)":"var(--muted)"}">${nf0.format(pct)}%</span></div>
+      <div class="bar"><span class="${pct>100?"over":""}" style="width:${Math.min(pct,100)}%"></span></div>
+      <p class="hint">${left>=0 ? `Mai puteți cheltui ${money(left)} luna aceasta.` : `Ați depășit bugetul cu ${money(-left)}.`}</p>`;
+  } else {
+    bp.innerHTML = `<h2>Buget comun</h2><p class="hint" style="margin:0">Puneți o limită lunară ca să vedeți amândoi cât mai e de cheltuit. <button class="link" id="setBudgetLink">Setează bugetul</button></p>`;
+    $("#setBudgetLink").onclick = openSettings;
+  }
+
+  // pe persoane
+  const byPerson = {};
+  tx.filter(t=>t.type==="out").forEach(t => byPerson[t.by] = (byPerson[t.by]||0) + t.amount);
+  const pRows = Object.entries(byPerson).sort((a,b)=>b[1]-a[1]);
+  $("#peoplePanel").hidden = (H.members||[]).length < 2 || pRows.length === 0;
+  const pMax = pRows.length ? pRows[0][1] : 1;
+  $("#people").innerHTML = pRows.map(([u,v]) => `<li><span>${esc(nameOf(u))}<span class="pct">${nf0.format(v/tout*100)}%</span></span><span class="num">${money(v)}</span><div class="bar"><span style="width:${v/pMax*100}%"></span></div></li>`).join("");
+
+  // pe categorii
+  const byCat = {};
+  tx.filter(t=>t.type==="out").forEach(t=>byCat[t.cat]=(byCat[t.cat]||0)+t.amount);
+  const rows = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  $("#catPanel").hidden = rows.length === 0;
+  const max = rows.length ? rows[0][1] : 1;
+  $("#cats").innerHTML = rows.map(([c,v]) => `<li><span>${esc(c)}<span class="pct">${nf0.format(v/tout*100)}%</span></span><span class="num">${money(v)}</span><div class="bar"><span style="width:${v/max*100}%"></span></div></li>`).join("");
+
+  // listă
+  const list = $("#list");
+  if (loadingTx) { list.innerHTML = `<div class="empty">Se încarcă tranzacțiile…</div>`; return; }
+  const shown = tx.filter(t => filter==="all" || t.type===filter)
+    .sort((a,b)=> b.date.localeCompare(a.date) || (b.created||0) - (a.created||0));
+  if (!shown.length) {
+    list.innerHTML = tx.length
+      ? `<div class="empty">Nicio tranzacție de acest tip în ${MONTHS[view.getMonth()].toLowerCase()}.</div>`
+      : `<div class="empty"><strong>Nimic notat încă</strong>Apasă pe Cheltuială sau Încasare jos ca să adaugi prima sumă.</div>`;
+    return;
+  }
+  const multi = (H.members||[]).length > 1;
+  let html = "", last = "";
+  for (const t of shown) {
+    if (t.date !== last) {
+      last = t.date;
+      const d = new Date(t.date+"T12:00");
+      html += `<div class="day">${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}</div>`;
+    }
+    const sub = [multi ? nameOf(t.by) : "", t.note || ""].filter(Boolean).join(", ");
+    html += `<button class="tx ${t.type}" data-id="${esc(t.id)}">
+      <span class="ic">${esc((t.cat||"?").charAt(0))}</span>
+      <span class="meta"><span class="cat">${esc(t.cat)}</span>${sub?`<span class="note">${esc(sub)}</span>`:""}</span>
+      <span class="amt">${t.type==="in"?"+":"−"}${money(t.amount)}</span></button>`;
+  }
+  list.innerHTML = html;
+}
+
+$("#prev").onclick = () => { view.setMonth(view.getMonth()-1); subMonth(); };
+$("#next").onclick = () => { view.setMonth(view.getMonth()+1); subMonth(); };
+document.querySelectorAll(".list-head .seg button").forEach(b => b.onclick = () => {
+  filter = b.dataset.f;
+  document.querySelectorAll(".list-head .seg button").forEach(x=>x.setAttribute("aria-pressed", x===b));
+  render();
+});
+
+/* ---------- tranzacție ---------- */
+const txD = $("#txDialog");
+function setType(type){
+  fType = type;
+  txD.querySelectorAll("[data-type]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.type===type));
+  if (!cats()[type].includes(fCat)) fCat = cats()[type][0];
+  $("#txTitle").textContent = editing ? "Modifică tranzacția" : (type==="out" ? "Cheltuială nouă" : "Încasare nouă");
+  renderChips();
+}
+function renderChips(){
+  const list = cats()[fType];
+  $("#fCats").innerHTML = list.map(c=>`<button type="button" aria-pressed="${c===fCat}">${esc(c)}</button>`).join("");
+  $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); });
+}
+function openTx(type, t){
+  editing = t || null;
+  fCat = t ? t.cat : null;
+  $("#fAmount").value = t ? String(t.amount).replace(".",",") : "";
+  const today = new Date();
+  $("#fDate").value = t ? t.date : (monthKey(today) === monthKey(view) ? ymd(today) : ymd(view));
+  $("#fNote").value = t ? (t.note||"") : "";
+  $("#fCur").textContent = cur();
+  $("#fErr").textContent = "";
+  $("#fDelete").hidden = !t;
+  $("#fBy").hidden = !t;
+  if (t) $("#fBy").textContent = "Adăugată de " + nameOf(t.by);
+  $("#fSave").textContent = t ? "Salvează modificările" : "Salvează";
+  setType(t ? t.type : type);
+  txD.showModal();
+  if (!t) setTimeout(()=>$("#fAmount").focus(), 60);
+}
+document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => openTx(b.dataset.add));
+txD.querySelectorAll("[data-type]").forEach(b => b.onclick = () => setType(b.dataset.type));
+$("#list").addEventListener("click", e => {
+  const b = e.target.closest(".tx"); if (!b) return;
+  const t = monthTx.find(x=>x.id===b.dataset.id); if (t) openTx(t.type, t);
+});
+$("#txForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const amount = parseAmt($("#fAmount").value);
+  if (!(amount > 0)) { $("#fErr").textContent = "Scrie o sumă mai mare decât zero."; $("#fAmount").focus(); return; }
+  const date = $("#fDate").value || ymd(new Date());
+  const data = { type:fType, amount, cat:fCat, date, note:$("#fNote").value.trim() };
+  const col = collection(db, "households", hid, "tx");
+  // scrierile apar imediat local și se trimit când e internet
+  if (editing) { updateDoc(doc(col, editing.id), data).catch(fail("Modificarea")); toast("Modificările au fost salvate"); }
+  else { addDoc(col, { ...data, by:user.uid, created:Date.now() }).catch(fail("Salvarea")); toast(fType==="out"?"Cheltuială salvată":"Încasare salvată"); }
+  const d = new Date(date+"T12:00");
+  const nv = new Date(d.getFullYear(), d.getMonth(), 1);
+  txD.close();
+  if (monthKey(nv) !== monthKey(view)) { view = nv; subMonth(); }
+});
+$("#fDelete").onclick = () => {
+  if (!editing || !confirm("Ștergi această tranzacție? Dispare de pe ambele telefoane.")) return;
+  deleteDoc(doc(db, "households", hid, "tx", editing.id)).catch(fail("Ștergerea"));
+  txD.close(); toast("Tranzacție ștearsă");
+};
+
+/* ---------- setări ---------- */
+const setD = $("#setDialog");
+const hRef = () => doc(db, "households", hid);
+function fillSettings(full = true){
+  if (full) {
+    $("#sBudget").value = H.budget ? String(H.budget).replace(".",",") : "";
+    $("#sCur").value = cur();
+  }
+  $("#sMembers").innerHTML = (H.members||[]).map(u => `<span class="plain">${esc(nameOf(u))}${u===user.uid?" (tu)":""}</span>`).join("");
+  ["out","in"].forEach(type=>{
+    $(type==="out"?"#sCatsOut":"#sCatsIn").innerHTML = cats()[type].map((c,i)=>`<span>${esc(c)}<button type="button" aria-label="Elimină ${esc(c)}" data-rm="${type}:${i}">×</button></span>`).join("");
+  });
+}
+function openSettings(){ fillSettings(true); setD.showModal(); }
+$("#openSettings").onclick = openSettings;
+$("#sBudget").addEventListener("change", () => {
+  const v = parseAmt($("#sBudget").value);
+  updateDoc(hRef(), { budget: v > 0 ? v : 0 }).catch(fail("Bugetul"));
+});
+$("#sCur").addEventListener("change", () => updateDoc(hRef(), { currency: $("#sCur").value }).catch(fail("Moneda")));
+setD.addEventListener("click", e => {
+  const rm = e.target.closest("[data-rm]");
+  if (rm) {
+    const [type,i] = rm.dataset.rm.split(":");
+    const c = structuredClone(cats());
+    if (c[type].length <= 1) { toast("Păstrează măcar o categorie"); return; }
+    c[type].splice(+i,1);
+    updateDoc(hRef(), { cats: c }).catch(fail("Categoriile")); return;
+  }
+  const add = e.target.closest("[data-addcat]");
+  if (add) {
+    const type = add.dataset.addcat, inp = $(type==="out"?"#sNewOut":"#sNewIn");
+    const name = inp.value.trim(); if (!name) return;
+    const c = structuredClone(cats());
+    if (c[type].some(x=>x.toLowerCase()===name.toLowerCase())) { toast("Categoria există deja"); return; }
+    c[type].splice(Math.max(c[type].length-1,0),0,name); inp.value = "";
+    updateDoc(hRef(), { cats: c }).catch(fail("Categoriile"));
+  }
+});
+["#sNewOut","#sNewIn"].forEach(id => $(id).addEventListener("keydown", e => {
+  if (e.key==="Enter") { e.preventDefault(); $(id).nextElementSibling.click(); }
+}));
+$("#invite").onclick = async () => {
+  const link = `${location.origin}${location.pathname}?join=${hid}`;
+  const text = `Intră în bugetul nostru comun din aplicația Bani: ${link}`;
+  if (navigator.share) { try { await navigator.share({ title: "Bani", text, url: link }); return; } catch(e){ if (e.name === "AbortError") return; } }
+  try { await navigator.clipboard.writeText(link); toast("Linkul de invitație a fost copiat"); }
+  catch(e){ prompt("Copiază linkul de invitație:", link); }
+};
+
+/* ---------- export / import ---------- */
+function offerFile(filename, text, mime){
+  const blob = new Blob([text], { type: mime });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+async function allTx(){
+  const s = await getDocs(collection(db, "households", hid, "tx"));
+  return s.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b)=>a.date.localeCompare(b.date));
+}
+$("#expCsv").onclick = async () => {
+  try {
+    const all = await allTx();
+    const q = s => `"${String(s).replace(/"/g,'""')}"`;
+    const lines = ["Data;Tip;Categorie;Sumă;Cine;Notă", ...all.map(t => [t.date, t.type==="in"?"Încasare":"Cheltuială", q(t.cat), String(t.amount).replace(".",","), q(nameOf(t.by)), q(t.note||"")].join(";"))];
+    offerFile(`tranzactii-${ymd(new Date())}.csv`, "\ufeff" + lines.join("\n"), "text/csv");
+  } catch (err) { fail("Exportul")(err); }
+};
+$("#expJson").onclick = async () => {
+  try {
+    const all = await allTx();
+    offerFile(`backup-bani-${ymd(new Date())}.json`, JSON.stringify({ budget:H.budget, currency:H.currency, cats:H.cats, tx:all }, null, 2), "application/json");
+  } catch (err) { fail("Backupul")(err); }
+};
+$("#impJson").onclick = () => $("#impFile").click();
+$("#impFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d || !Array.isArray(d.tx)) throw new Error("format");
+    const clean = d.tx.filter(t => t && (t.type==="in"||t.type==="out") && +t.amount > 0 && /^\d{4}-\d{2}-\d{2}$/.test(t.date))
+      .map(t => ({ type:t.type, amount:Math.round(+t.amount*100)/100, cat:String(t.cat||"Altele").slice(0,30), date:t.date, note:String(t.note||"").slice(0,80), by:(H.members||[]).includes(t.by) ? t.by : user.uid, created:+t.created || Date.now() }));
+    if (!clean.length) { toast("Fișierul nu conține tranzacții"); return; }
+    if (!confirm(`Adaug ${clean.length} tranzacții în bugetul comun?`)) return;
+    const col = collection(db, "households", hid, "tx");
+    for (let i = 0; i < clean.length; i += 400) {
+      const b = writeBatch(db);
+      clean.slice(i, i+400).forEach(t => b.set(doc(col), t));
+      await b.commit();
+    }
+    // completează categoriile lipsă
+    const c = structuredClone(cats());
+    clean.forEach(t => { if (!c[t.type].includes(t.cat)) c[t.type].splice(Math.max(c[t.type].length-1,0),0,t.cat); });
+    await updateDoc(hRef(), { cats: c });
+    setD.close(); toast(`Am importat ${clean.length} tranzacții`);
+  } catch (err) { toast(err.message === "format" ? "Fișierul nu e un backup valid." : "Importul nu a mers: " + (err.code||err.message)); }
+});
+
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
+document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+</script>
+</body>
+</html>
