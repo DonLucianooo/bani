@@ -299,6 +299,7 @@ window.FIREBASE_CONFIG = {
     </div>
     <p class="err" id="fErr"></p>
     <div class="field"><span class="flbl">Categorie</span><div class="chips" id="fCats"></div></div>
+    <div class="field" id="fInvBox" hidden><label for="fInv">Se adaugă automat la investiția</label><select id="fInv"></select></div>
     <div class="row2">
       <div class="field"><label for="fDate">Data</label><input type="date" id="fDate"></div>
       <div class="field"><label for="fNote">Notă</label><input id="fNote" placeholder="opțional" maxlength="80"></div>
@@ -331,7 +332,7 @@ window.FIREBASE_CONFIG = {
     <div class="set-group" id="iDepositBox" hidden>
       <h3>Am mai depus bani</h3>
       <div class="inline-add"><input id="iDeposit" inputmode="decimal" placeholder="Sumă depusă"><button type="button" id="iDepositBtn">Adaugă</button></div>
-      <p class="hint" style="margin:0">Suma se adaugă la investiție și se scade din banii tăi, ca o cheltuială la categoria Investiții.</p>
+      <p class="hint" style="margin:0">Suma se adaugă la investiție și se scade din banii tăi, ca o cheltuială la Crypto sau Bursă.</p>
     </div>
     <button type="button" class="ghost danger" id="iDelete" hidden>Șterge investiția</button>
   </form>
@@ -671,9 +672,37 @@ function setType(type){
   $("#txTitle").textContent = editing ? "Modifică tranzacția" : (type==="out" ? "Cheltuială nouă" : "Încasare nouă");
   renderChips();
   autoNote();
+  renderInvPick();
 }
 // la Salariu, nota se completează singură cu numele celui care adaugă
 const isSalary = () => fType === "in" && /^salariu$/i.test(fCat || "");
+// cheltuielile la Crypto / Bursă se adaugă singure în investiții
+const invKindOf = c => /^crypto$/i.test(c||"") ? "crypto" : /^burs[aă]$/i.test(c||"") ? "bursa" : null;
+function renderInvPick(){
+  const k = fType === "out" && !editing ? invKindOf(fCat) : null;
+  $("#fInvBox").hidden = !k; if (!k) return;
+  const opts = (H.inv||[]).filter(i => i.kind === k);
+  const mine = opts.find(i => i.owner === user.uid) || opts.find(i => !i.owner) || opts[0];
+  $("#fInv").innerHTML = opts.map(i => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.owner ? nameOf(i.owner) : "Comun")})</option>`).join("")
+    + `<option value="__new">Investiție nouă: ${esc(fCat)} (${esc(myName())})</option>`;
+  $("#fInv").value = mine ? mine.id : "__new";
+}
+// adaugă (sau scade) o sumă într-o investiție; întoarce id-ul investiției
+function bumpInv(invId, delta, kind, name){
+  const list = structuredClone(H.inv || []);
+  let i = list.find(x => x.id === invId);
+  if (!i) {
+    if (delta <= 0) return null;
+    i = { id: Math.random().toString(36).slice(2,10) + Date.now().toString(36), name, kind, owner:user.uid, value:0, invested:0 };
+    list.push(i);
+  }
+  i.invested = Math.max(0, Math.round(((+i.invested||0) + delta)*100)/100);
+  i.value = Math.max(0, Math.round(((+i.value||0) + delta)*100)/100);
+  i.updated = Date.now();
+  H.inv = list;
+  updateDoc(hRef(), { inv: list }).catch(fail("Investițiile"));
+  return i.id;
+}
 function autoNote(){
   const n = $("#fNote"), me = myName();
   if (isSalary() && !n.value.trim()) n.value = me;
@@ -682,7 +711,7 @@ function autoNote(){
 function renderChips(){
   const list = cats()[fType];
   $("#fCats").innerHTML = list.map(c=>`<button type="button" aria-pressed="${c===fCat}">${esc(c)}</button>`).join("");
-  $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); autoNote(); });
+  $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); autoNote(); renderInvPick(); });
 }
 function openTx(type, t){
   editing = t || null;
@@ -717,15 +746,29 @@ $("#txForm").addEventListener("submit", e => {
   const data = { type:fType, amount, cat:fCat, date, note:$("#fNote").value.trim() || (isSalary() && !editing ? myName() : "") };
   const col = collection(db, "households", hid, "tx");
   // scrierile apar imediat local și se trimit când e internet
-  if (editing) { updateDoc(doc(col, editing.id), data).catch(fail("Modificarea")); toast("Modificările au fost salvate"); }
-  else { addDoc(col, { ...data, by:user.uid, created:Date.now() }).catch(fail("Salvarea")); toast(fType==="out"?"Cheltuială salvată":"Încasare salvată"); }
+  if (editing) {
+    // dacă tranzacția e legată de o investiție, ajustăm și investiția cu diferența
+    if (editing.invId && amount !== editing.amount) bumpInv(editing.invId, amount - editing.amount);
+    updateDoc(doc(col, editing.id), data).catch(fail("Modificarea")); toast("Modificările au fost salvate");
+  } else {
+    const k = fType === "out" ? invKindOf(fCat) : null;
+    let invId = null, invName = "";
+    if (k) {
+      const pick = $("#fInv").value;
+      invId = bumpInv(pick, amount, k, fCat);
+      invName = ((H.inv||[]).find(x=>x.id===invId)||{}).name || fCat;
+    }
+    addDoc(col, { ...data, by:user.uid, created:Date.now(), ...(invId ? { invId } : {}) }).catch(fail("Salvarea"));
+    toast(invId ? `Salvat și adăugat la investiția ${invName}` : (fType==="out"?"Cheltuială salvată":"Încasare salvată"));
+  }
   const d = new Date(date+"T12:00");
   const nv = new Date(d.getFullYear(), d.getMonth(), 1);
   txD.close();
   if (monthKey(nv) !== monthKey(view)) { view = nv; subMonth(); }
 });
 $("#fDelete").onclick = () => {
-  if (!editing || !confirm("Ștergi această tranzacție? Dispare de pe ambele telefoane.")) return;
+  if (!editing || !confirm(editing.invId ? "Ștergi această tranzacție? Suma se scade și din investiție." : "Ștergi această tranzacție? Dispare de pe ambele telefoane.")) return;
+  if (editing.invId) bumpInv(editing.invId, -editing.amount);
   deleteDoc(doc(db, "households", hid, "tx", editing.id)).catch(fail("Ștergerea"));
   txD.close(); toast("Tranzacție ștearsă");
 };
@@ -888,9 +931,10 @@ $("#iDepositBtn").onclick = () => {
   list[k].updated = Date.now();
   // categoria Investiții, dacă nu există
   const c = structuredClone(cats());
-  if (!c.out.includes("Investiții")) c.out.splice(Math.max(c.out.length-1,0), 0, "Investiții");
+  const catName = c.out.find(x => invKindOf(x) === list[k].kind) || (list[k].kind === "crypto" ? "Crypto" : "Bursă");
+  if (!c.out.includes(catName)) c.out.splice(Math.max(c.out.length-1,0), 0, catName);
   updateDoc(hRef(), { inv: list, cats: c }).catch(fail("Investițiile"));
-  addDoc(collection(db, "households", hid, "tx"), { type:"out", amount:amt, cat:"Investiții", date:ymd(new Date()), note:list[k].name, by:user.uid, created:Date.now() }).catch(fail("Depunerea"));
+  addDoc(collection(db, "households", hid, "tx"), { type:"out", amount:amt, cat:catName, date:ymd(new Date()), note:list[k].name, by:user.uid, created:Date.now(), invId:list[k].id }).catch(fail("Depunerea"));
   invD.close(); toast(`Ai depus ${money(amt)} în ${list[k].name}`);
 };
 $("#iDelete").onclick = () => {
