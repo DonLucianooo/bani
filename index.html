@@ -337,7 +337,7 @@ window.FIREBASE_CONFIG = {
       <button type="button" data-kind="bursa" aria-pressed="true">Bursă</button>
       <button type="button" data-kind="crypto" aria-pressed="false">Crypto</button>
     </div>
-    <div class="field"><label for="iName">Nume</label><input id="iName" maxlength="40" placeholder="ex. ETF S&amp;P 500, Bitcoin, Revolut Bursă"></div>
+    <div class="field"><label for="iName">Nume</label><input id="iName" maxlength="40" placeholder="ex. ETF S&amp;P 500, Tradeville, XTB"></div>
     <div class="row2">
       <div class="field"><label for="iValue">Valoare acum</label><input id="iValue" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label for="iInvested">Cât ați depus în total</label><input id="iInvested" inputmode="decimal" placeholder="0"></div>
@@ -807,6 +807,7 @@ document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => openTx(b.
 txD.querySelectorAll("[data-type]").forEach(b => b.onclick = () => setType(b.dataset.type));
 $("#list").addEventListener("click", e => {
   if (e.target.closest("#addInv")) { openInv(null); return; }
+  if (e.target.closest("#addCrypto")) { openCtx(null); return; }
   if (e.target.closest("[data-pf],#openPf")) { openPf(); return; }
   const iv = e.target.closest("[data-inv]"); if (iv) { openInv(iv.dataset.inv); return; }
   const b = e.target.closest(".tx"); if (!b) return;
@@ -958,10 +959,10 @@ const KIND = { bursa:"Bursă", crypto:"Crypto" };
 const pctTxt = (v, base) => base > 0 ? `${v>=0?"+":"−"}${nf.format(Math.abs(v))} (${v>=0?"+":"−"}${nf0.format(Math.abs(v/base*100))}%)` : "";
 function invView(){
   const invs = [...(H.inv || [])].sort((a,b)=>(+b.value||0)-(+a.value||0));
-  const addBtn = `<button type="button" class="ghost add-inv" id="addInv">+ Adaugă investiție</button>`;
-  const pfBtn = `<button type="button" class="ghost add-inv" id="openPf">₿ Portofoliu crypto</button>`;
+  const addBtn = `<div class="row2 add-inv"><button type="button" class="ghost" id="addInv">+ Bursă</button><button type="button" class="ghost" id="addCrypto">+ Crypto</button></div>`;
+  const pfBtn = "";
   const P = pfHas() ? pfCalc() : null;
-  if (!invs.length && !P) return `<div class="empty"><strong>Nicio investiție încă</strong>Adaugă contul de bursă sau crypto cu valoarea de acum. O actualizați voi când se schimbă piața.</div>${addBtn}${pfBtn}`;
+  if (!invs.length && !P) return `<div class="empty"><strong>Nicio investiție încă</strong>Adaugă o investiție la bursă sau o cumpărare crypto, ori <button type="button" class="link" id="openPf">importă portofoliul din Claude</button>.</div>${addBtn}`;
   const tot = invs.reduce((a,i)=>a+(+i.value||0),0) + (P ? P.value : 0), dep = invs.reduce((a,i)=>a+(+i.invested||0),0) + (P ? P.cost : 0), g = tot - dep;
   const byKind = k => invs.filter(i=>i.kind===k).reduce((a,i)=>a+(+i.value||0),0) + (k==="crypto" && P ? P.value : 0);
   let html = `<div class="inv-sum"><div class="lbl">Total în investiții</div><div class="big">${nf.format(tot)} <small style="font-size:.45em;color:var(--muted)">${esc(cur())}</small></div>
@@ -982,7 +983,7 @@ function invView(){
       <span class="meta"><span class="cat">${esc(i.name)}</span><span class="note">${esc(KIND[i.kind]||"")} · ${esc(who)}</span></span>
       <span style="text-align:right"><span class="amt" style="display:block">${nf.format(+i.value||0)}</span>${+i.invested>0?`<span class="note ${gi>=0?"up":"down"}" style="font-size:.78rem">${gi>=0?"+":"−"}${nf0.format(Math.abs(gi/(+i.invested)*100))}%</span>`:""}</span></button>`;
   }
-  return html + addBtn + (P ? "" : pfBtn);
+  return html + addBtn;
 }
 const invD = $("#invDialog");
 let invEditing = null, iKind = "bursa";
@@ -991,13 +992,14 @@ invD.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => setKind(b.da
 function openInv(id){
   const i = id ? (H.inv||[]).find(x=>x.id===id) : null;
   invEditing = i;
-  $("#invTitle").textContent = i ? i.name : "Investiție nouă";
+  $("#invTitle").textContent = i ? i.name : "Investiție la bursă";
   $("#iName").value = i ? i.name : "";
   $("#iValue").value = i ? String(i.value).replace(".",",") : "";
   $("#iInvested").value = i && i.invested ? String(i.invested).replace(".",",") : "";
   $("#iOwner").innerHTML = `<option value="">Comun</option>` + (H.members||[]).map(u=>`<option value="${esc(u)}">${esc(nameOf(u))}</option>`).join("");
   $("#iOwner").value = i ? (i.owner||"") : user.uid;
   setKind(i ? i.kind : "bursa");
+  invD.querySelector("[data-kind]").parentElement.hidden = !i || i.kind !== "crypto";
   $("#iUpdated").hidden = !i;
   if (i && i.updated) { const d = new Date(i.updated); $("#iUpdated").textContent = `Valoare actualizată ultima dată pe ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()}.`; }
   $("#iDepositBox").hidden = !i; $("#iDelete").hidden = !i; $("#iDeposit").value = ""; $("#iErr").textContent = "";
