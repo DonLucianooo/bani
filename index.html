@@ -65,9 +65,10 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .hero .lbl{color:var(--hero-ink);font-size:.85rem;margin:0}
 .balance{font-family:var(--display);font-weight:800;font-size:clamp(2.7rem,14vw,3.8rem);line-height:1;letter-spacing:-.03em;margin:10px 0 20px;font-variant-numeric:tabular-nums}
 .balance small{font-size:.34em;font-weight:500;letter-spacing:0;margin-left:.3em;color:var(--hero-ink)}
-.totals{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;text-align:left}
 .totals > div{display:flex;flex-direction:column;background:rgba(255,255,255,.75);border-radius:16px;padding:10px 13px}
-.totals .t-lbl{font-size:.78rem;color:var(--hero-ink);display:flex;align-items:center;gap:5px}
+.totals .t-lbl{font-size:.82rem;font-weight:600;color:var(--hero-ink);display:flex;align-items:center;gap:5px}
+.totals .t-sub{font-size:.74rem;color:var(--hero-ink);margin-top:2px;font-variant-numeric:tabular-nums}
 .totals .t-val{font-family:var(--display);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 
 .panel{background:var(--surface);border-radius:24px;padding:18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(20,30,20,.05)}
@@ -237,17 +238,7 @@ window.FIREBASE_CONFIG = {
   <section class="hero" aria-live="polite">
     <p class="lbl"><i class="sync" id="syncDot" title="Sincronizat"></i> <span id="hhLabel">Rămas luna aceasta</span></p>
     <p class="balance" id="balance">0</p>
-    <div class="totals">
-      <div><span class="t-lbl">↓ Încasări</span><span class="t-val" id="totIn">0</span></div>
-      <div><span class="t-lbl">↑ Cheltuieli</span><span class="t-val" id="totOut">0</span></div>
-    </div>
-  </section>
-
-  <section class="panel" id="budgetPanel"></section>
-
-  <section class="panel" id="peoplePanel" hidden>
-    <h2>Cine a cheltuit</h2>
-    <ul class="cats people" id="people"></ul>
+    <div class="totals" id="persons"></div>
   </section>
 
   <section class="panel" id="catPanel">
@@ -314,7 +305,6 @@ window.FIREBASE_CONFIG = {
       <p class="hint" style="margin:0">Trimite linkul. Partenerul își face cont și intră automat în acest buget.</p>
     </div>
     <div class="row2">
-      <div class="field"><label for="sBudget">Buget lunar cheltuieli</label><input id="sBudget" inputmode="decimal" placeholder="fără buget"></div>
       <div class="field"><label for="sCur">Monedă</label>
         <select id="sCur"><option>lei</option><option>€</option><option>$</option></select></div>
     </div>
@@ -377,7 +367,7 @@ const DAYS = ["duminică","luni","marți","miercuri","joi","vineri","sâmbătă"
 const nf = new Intl.NumberFormat("ro-RO",{minimumFractionDigits:2,maximumFractionDigits:2});
 const nf0 = new Intl.NumberFormat("ro-RO",{maximumFractionDigits:0});
 
-let user = null, hid = null, H = null, monthTx = [], loadingTx = true;
+let user = null, hid = null, H = null, monthTx = [], everyTx = [], loadingTx = true;
 let unsubH = null, unsubTx = null;
 let view = new Date(); view.setDate(1);
 let filter = "all", editing = null, fType = "out", fCat = null;
@@ -454,7 +444,7 @@ document.querySelectorAll("[data-signout]").forEach(b => b.onclick = async () =>
   await signOut(auth);
 });
 
-function cleanup(){ unsubH?.(); unsubTx?.(); unsubH = unsubTx = null; hid = null; H = null; monthTx = []; }
+function cleanup(){ unsubH?.(); unsubTx?.(); unsubH = unsubTx = null; hid = null; H = null; monthTx = []; everyTx = []; loadingTx = true; }
 
 let routing = false;
 async function routeUser(u){
@@ -532,50 +522,50 @@ async function leaveToSetup(){
   $("#setupHello").textContent = "Salut, " + myName();
   show("setup");
 }
+// toate tranzacțiile, ca soldul să se reporteze de la o lună la alta
 function subMonth(){
-  unsubTx?.();
+  if (!unsubTx) {
+    loadingTx = true;
+    unsubTx = onSnapshot(collection(db, "households", hid, "tx"), snap => {
+      everyTx = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      loadingTx = false; pickMonth();
+    }, fail("Tranzacții"));
+  }
+  pickMonth();
+}
+function pickMonth(){
   const mk = monthKey(view);
-  loadingTx = true; monthTx = []; render();
-  const q = query(collection(db, "households", hid, "tx"), where("date", ">=", mk + "-01"), where("date", "<=", mk + "-31"));
-  unsubTx = onSnapshot(q, snap => {
-    monthTx = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    loadingTx = false; render();
-  }, fail("Tranzacții"));
+  monthTx = everyTx.filter(t => typeof t.date === "string" && t.date.slice(0,7) === mk);
+  render();
 }
 
 /* ---------- afișare ---------- */
 function render(){
   if (!H) return;
   $("#monthLabel").textContent = `${MONTHS[view.getMonth()]} ${view.getFullYear()}`;
-  $("#hhLabel").textContent = `${H.name || "Buget"}, rămas luna aceasta`;
+  const mk = monthKey(view), isNow = mk === monthKey(new Date());
+  $("#hhLabel").textContent = isNow ? `${H.name || "Buget"}, total disponibil` : `Total la final de ${MONTHS[view.getMonth()].toLowerCase()}`;
   const tx = monthTx;
-  const tin = tx.filter(t=>t.type==="in").reduce((a,t)=>a+t.amount,0);
   const tout = tx.filter(t=>t.type==="out").reduce((a,t)=>a+t.amount,0);
-  const bal = tin - tout;
+  // soldul include tot ce a rămas din lunile trecute
+  const upTo = everyTx.filter(t => typeof t.date === "string" && t.date.slice(0,7) <= mk);
+  const sgn = t => t.type === "in" ? t.amount : -t.amount;
+  const bal = upTo.reduce((a,t)=>a+sgn(t),0);
 
   $("#balance").innerHTML = `${bal<0?"−":""}${nf.format(Math.abs(bal))}<small>${esc(cur())}</small>`;
   $("#balance").style.color = bal < 0 ? "var(--out)" : "var(--ink)";
-  $("#totIn").textContent = nf.format(tin);
-  $("#totOut").textContent = nf.format(tout);
-
-  const bp = $("#budgetPanel"), budget = +H.budget || 0;
-  if (budget > 0) {
-    const pct = tout / budget * 100, left = budget - tout;
-    bp.innerHTML = `<div class="p-head"><h2>Buget comun</h2><span class="num">${nf0.format(tout)} / ${nf0.format(budget)} ${esc(cur())}</span></div>
-      <div class="bigbar"><span class="${pct>100?"over":""}" style="width:${Math.min(pct,100)}%"></span></div>
-      <div class="budget-row"><span>${nf0.format(pct)}% folosit</span>${left>=0 ? `<b>${money(left)} rămași</b>` : `<b class="over">depășit cu ${money(-left)}</b>`}</div>`;
-  } else {
-    bp.innerHTML = `<h2>Buget comun</h2><p class="hint" style="margin:0">Puneți o limită lunară ca să vedeți amândoi cât mai e de cheltuit. <button class="link" id="setBudgetLink">Setează bugetul</button></p>`;
-    $("#setBudgetLink").onclick = openSettings;
-  }
-
-  // pe persoane
-  const byPerson = {};
-  tx.filter(t=>t.type==="out").forEach(t => byPerson[t.by] = (byPerson[t.by]||0) + t.amount);
-  const pRows = Object.entries(byPerson).sort((a,b)=>b[1]-a[1]);
-  $("#peoplePanel").hidden = (H.members||[]).length < 2 || pRows.length === 0;
-  const pMax = pRows.length ? pRows[0][1] : 1;
-  $("#people").innerHTML = pRows.map(([u,v]) => `<li><span>${esc(nameOf(u))}<span class="pct">${nf0.format(v/tout*100)}%</span></span><span class="num">${money(v)}</span><div class="bar"><span style="width:${v/pMax*100}%"></span></div></li>`).join("");
+  // banii fiecăruia: încasările lui minus cheltuielile lui
+  const members = [...(H.members||[])].sort((a,b) => (a===user.uid ? -1 : b===user.uid ? 1 : 0));
+  const per = {};
+  members.forEach(u => per[u] = { bal:0, in:0, out:0 });
+  upTo.forEach(t => { if (per[t.by]) per[t.by].bal += sgn(t); });
+  tx.forEach(t => { if (per[t.by]) per[t.by][t.type] += t.amount; });
+  $("#persons").innerHTML = members.map(u => {
+    const p = per[u], b = p.bal;
+    return `<div><span class="t-lbl">${esc(nameOf(u))}</span>
+      <span class="t-val" style="${b<0?"color:var(--out)":""}">${b<0?"−":""}${nf.format(Math.abs(b))}</span>
+      <span class="t-sub">${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()} ↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span></div>`;
+  }).join("");
 
   // pe categorii
   const byCat = {};
@@ -688,7 +678,6 @@ const setD = $("#setDialog");
 const hRef = () => doc(db, "households", hid);
 function fillSettings(full = true){
   if (full) {
-    $("#sBudget").value = H.budget ? String(H.budget).replace(".",",") : "";
     $("#sCur").value = cur();
   }
   $("#sMembers").innerHTML = (H.members||[]).map(u => `<span class="plain">${esc(nameOf(u))}${u===user.uid?" (tu)":""}</span>`).join("");
@@ -698,10 +687,6 @@ function fillSettings(full = true){
 }
 function openSettings(){ fillSettings(true); setD.showModal(); }
 $("#openSettings").onclick = openSettings;
-$("#sBudget").addEventListener("change", () => {
-  const v = parseAmt($("#sBudget").value);
-  updateDoc(hRef(), { budget: v > 0 ? v : 0 }).catch(fail("Bugetul"));
-});
 $("#sCur").addEventListener("change", () => updateDoc(hRef(), { currency: $("#sCur").value }).catch(fail("Moneda")));
 setD.addEventListener("click", e => {
   const rm = e.target.closest("[data-rm]");
