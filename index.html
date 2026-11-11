@@ -598,7 +598,8 @@ function render(){
       const lbl = t.date === ymd(new Date()) ? "Azi" : t.date === ymd(yest) ? "Ieri" : `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`;
       html += `<div class="day">${lbl}</div>`;
     }
-    const sub = [multi ? nameOf(t.by) : "", t.note || ""].filter(Boolean).join(", ");
+    const who = multi ? nameOf(t.by) : "";
+    const sub = [who, t.note && t.note !== who ? t.note : ""].filter(Boolean).join(", ");
     html += `<button class="tx ${t.type}" data-id="${esc(t.id)}">
       <span class="ic">${esc((t.cat||"?").charAt(0))}</span>
       <span class="meta"><span class="cat">${esc(t.cat)}</span>${sub?`<span class="note">${esc(sub)}</span>`:""}</span>
@@ -623,11 +624,19 @@ function setType(type){
   if (!cats()[type].includes(fCat)) fCat = cats()[type][0];
   $("#txTitle").textContent = editing ? "Modifică tranzacția" : (type==="out" ? "Cheltuială nouă" : "Încasare nouă");
   renderChips();
+  autoNote();
+}
+// la Salariu, nota se completează singură cu numele celui care adaugă
+const isSalary = () => fType === "in" && /^salariu$/i.test(fCat || "");
+function autoNote(){
+  const n = $("#fNote"), me = myName();
+  if (isSalary() && !n.value.trim()) n.value = me;
+  else if (!isSalary() && n.value.trim() === me && !editing) n.value = "";
 }
 function renderChips(){
   const list = cats()[fType];
   $("#fCats").innerHTML = list.map(c=>`<button type="button" aria-pressed="${c===fCat}">${esc(c)}</button>`).join("");
-  $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); });
+  $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); autoNote(); });
 }
 function openTx(type, t){
   editing = t || null;
@@ -657,7 +666,7 @@ $("#txForm").addEventListener("submit", e => {
   const amount = parseAmt($("#fAmount").value);
   if (!(amount > 0)) { $("#fErr").textContent = "Scrie o sumă mai mare decât zero."; $("#fAmount").focus(); return; }
   const date = $("#fDate").value || ymd(new Date());
-  const data = { type:fType, amount, cat:fCat, date, note:$("#fNote").value.trim() };
+  const data = { type:fType, amount, cat:fCat, date, note:$("#fNote").value.trim() || (isSalary() && !editing ? myName() : "") };
   const col = collection(db, "households", hid, "tx");
   // scrierile apar imediat local și se trimit când e internet
   if (editing) { updateDoc(doc(col, editing.id), data).catch(fail("Modificarea")); toast("Modificările au fost salvate"); }
