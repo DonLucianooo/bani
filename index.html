@@ -255,7 +255,6 @@ window.FIREBASE_CONFIG = {
     <p class="lbl"><i class="sync" id="syncDot" title="Sincronizat"></i> <span id="hhLabel">Rămas luna aceasta</span></p>
     <p class="balance" id="balance">0</p>
     <div class="totals" id="persons"></div>
-    <p class="inv-line" id="invLine" hidden></p>
   </section>
 
   <section class="panel" id="catPanel">
@@ -612,12 +611,6 @@ function render(){
       <span class="t-val" style="${b<0?"color:var(--out)":""}">${b<0?"−":""}${nf.format(Math.abs(b))}</span>
       <span class="t-sub" title="${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()}">↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span></div>`;
   }).join("");
-
-  // investiții (valoare totală, separat de banii disponibili)
-  const invs = H.inv || [];
-  const invTotal = invs.reduce((a,i)=>a+(+i.value||0),0);
-  $("#invLine").hidden = !invs.length;
-  $("#invLine").innerHTML = `Plus în investiții: <b>${money(invTotal)}</b>`;
 
   // pe categorii
   const byCat = {};
