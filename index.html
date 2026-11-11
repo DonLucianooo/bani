@@ -68,7 +68,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;text-align:left}
 .totals > div{display:flex;flex-direction:column;background:rgba(255,255,255,.75);border-radius:16px;padding:10px 13px}
 .totals .t-lbl{font-size:.82rem;font-weight:600;color:var(--hero-ink);display:flex;align-items:center;gap:5px}
-.totals .t-sub{font-size:.74rem;color:var(--hero-ink);margin-top:2px;font-variant-numeric:tabular-nums}
+.totals .t-sub{white-space:nowrap;font-size:.74rem;color:var(--hero-ink);margin-top:2px;font-variant-numeric:tabular-nums}
 .totals .t-val{font-family:var(--display);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 
 .panel{background:var(--surface);border-radius:24px;padding:18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(20,30,20,.05)}
@@ -158,6 +158,22 @@ dialog::backdrop{background:rgba(15,25,15,.4)}
 .inline-add button{border:0;border-radius:12px;padding:0 14px;background:var(--line);font-weight:600}
 .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:.92rem;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.list-head .seg{flex:1 1 100%}
+.list-head .seg button{padding:7px 4px;font-size:.84rem}
+.inv-line{margin:12px 0 0;font-size:.85rem;color:var(--hero-ink)}
+.inv-line b{color:var(--ink);font-family:var(--display)}
+.inv-sum{background:var(--surface-2);border-radius:18px;padding:16px;margin:12px 0 6px;text-align:center}
+.inv-sum .lbl{font-size:.82rem;color:var(--muted)}
+.inv-sum .big{font-family:var(--display);font-weight:800;font-size:2rem;letter-spacing:-.02em;line-height:1.1;margin:4px 0}
+.inv-sum .gain{font-size:.85rem;font-weight:600}
+.inv-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;text-align:left}
+.inv-kinds div{background:var(--surface);border-radius:14px;padding:9px 12px;font-size:.78rem;color:var(--muted)}
+.inv-kinds b{display:block;font-family:var(--display);font-size:1rem;color:var(--ink)}
+.up,.tx .note.up{color:var(--in)} .down,.tx .note.down{color:var(--out)}
+.inv .ic{background:#EEF0FF!important;color:#5B5BF0!important}
+.inv.crypto .ic{background:#FFF3DC!important;color:#C98A0B!important}
+.add-inv{margin-top:10px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -239,6 +255,7 @@ window.FIREBASE_CONFIG = {
     <p class="lbl"><i class="sync" id="syncDot" title="Sincronizat"></i> <span id="hhLabel">Rămas luna aceasta</span></p>
     <p class="balance" id="balance">0</p>
     <div class="totals" id="persons"></div>
+    <p class="inv-line" id="invLine" hidden></p>
   </section>
 
   <section class="panel" id="catPanel">
@@ -254,6 +271,7 @@ window.FIREBASE_CONFIG = {
         <button data-f="all" aria-pressed="true">Toate</button>
         <button data-f="out" aria-pressed="false">Cheltuieli</button>
         <button data-f="in" aria-pressed="false">Încasări</button>
+        <button data-f="inv" aria-pressed="false">Investiții</button>
       </div>
     </div>
     <div id="list"></div>
@@ -289,6 +307,34 @@ window.FIREBASE_CONFIG = {
     <p class="hint" id="fBy" hidden></p>
     <button type="submit" class="primary" id="fSave">Salvează</button>
     <button type="button" class="ghost danger" id="fDelete" hidden>Șterge tranzacția</button>
+  </form>
+</dialog>
+
+<dialog id="invDialog" aria-labelledby="invTitle">
+  <form class="sheet" id="invForm" novalidate>
+    <div class="sheet-head">
+      <h2 id="invTitle">Investiție nouă</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="seg" role="group" aria-label="Tip investiție">
+      <button type="button" data-kind="bursa" aria-pressed="true">Bursă</button>
+      <button type="button" data-kind="crypto" aria-pressed="false">Crypto</button>
+    </div>
+    <div class="field"><label for="iName">Nume</label><input id="iName" maxlength="40" placeholder="ex. ETF S&amp;P 500, Bitcoin, Revolut Bursă"></div>
+    <div class="row2">
+      <div class="field"><label for="iValue">Valoare acum</label><input id="iValue" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label for="iInvested">Cât ați depus în total</label><input id="iInvested" inputmode="decimal" placeholder="0"></div>
+    </div>
+    <div class="field"><label for="iOwner">Al cui e</label><select id="iOwner"></select></div>
+    <p class="hint" id="iUpdated" hidden></p>
+    <p class="err" id="iErr"></p>
+    <button type="submit" class="primary" id="iSave">Salvează</button>
+    <div class="set-group" id="iDepositBox" hidden>
+      <h3>Am mai depus bani</h3>
+      <div class="inline-add"><input id="iDeposit" inputmode="decimal" placeholder="Sumă depusă"><button type="button" id="iDepositBtn">Adaugă</button></div>
+      <p class="hint" style="margin:0">Suma se adaugă la investiție și se scade din banii tăi, ca o cheltuială la categoria Investiții.</p>
+    </div>
+    <button type="button" class="ghost danger" id="iDelete" hidden>Șterge investiția</button>
   </form>
 </dialog>
 
@@ -564,8 +610,14 @@ function render(){
     const p = per[u], b = p.bal;
     return `<div><span class="t-lbl">${esc(nameOf(u))}</span>
       <span class="t-val" style="${b<0?"color:var(--out)":""}">${b<0?"−":""}${nf.format(Math.abs(b))}</span>
-      <span class="t-sub">${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()} ↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span></div>`;
+      <span class="t-sub" title="${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()}">↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span></div>`;
   }).join("");
+
+  // investiții (valoare totală, separat de banii disponibili)
+  const invs = H.inv || [];
+  const invTotal = invs.reduce((a,i)=>a+(+i.value||0),0);
+  $("#invLine").hidden = !invs.length;
+  $("#invLine").innerHTML = `Plus în investiții: <b>${money(invTotal)}</b>`;
 
   // pe categorii
   const byCat = {};
@@ -579,6 +631,7 @@ function render(){
 
   // listă
   const list = $("#list");
+  if (filter === "inv") { list.innerHTML = invView(); return; }
   if (loadingTx) { list.innerHTML = `<div class="empty">Se încarcă tranzacțiile…</div>`; return; }
   const shown = tx.filter(t => filter==="all" || t.type===filter)
     .sort((a,b)=> b.date.localeCompare(a.date) || (b.created||0) - (a.created||0));
@@ -658,6 +711,8 @@ function openTx(type, t){
 document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => openTx(b.dataset.add));
 txD.querySelectorAll("[data-type]").forEach(b => b.onclick = () => setType(b.dataset.type));
 $("#list").addEventListener("click", e => {
+  if (e.target.closest("#addInv")) { openInv(null); return; }
+  const iv = e.target.closest("[data-inv]"); if (iv) { openInv(iv.dataset.inv); return; }
   const b = e.target.closest(".tx"); if (!b) return;
   const t = monthTx.find(x=>x.id===b.dataset.id); if (t) openTx(t.type, t);
 });
@@ -750,7 +805,7 @@ $("#expCsv").onclick = async () => {
 $("#expJson").onclick = async () => {
   try {
     const all = await allTx();
-    offerFile(`backup-bani-${ymd(new Date())}.json`, JSON.stringify({ budget:H.budget, currency:H.currency, cats:H.cats, tx:all }, null, 2), "application/json");
+    offerFile(`backup-bani-${ymd(new Date())}.json`, JSON.stringify({ currency:H.currency, cats:H.cats, inv:H.inv||[], tx:all }, null, 2), "application/json");
   } catch (err) { fail("Backupul")(err); }
 };
 $("#impJson").onclick = () => $("#impFile").click();
@@ -776,6 +831,79 @@ $("#impFile").addEventListener("change", async e => {
     setD.close(); toast(`Am importat ${clean.length} tranzacții`);
   } catch (err) { toast(err.message === "format" ? "Fișierul nu e un backup valid." : "Importul nu a mers: " + (err.code||err.message)); }
 });
+
+/* ---------- investiții ---------- */
+const KIND = { bursa:"Bursă", crypto:"Crypto" };
+const pctTxt = (v, base) => base > 0 ? `${v>=0?"+":"−"}${nf.format(Math.abs(v))} (${v>=0?"+":"−"}${nf0.format(Math.abs(v/base*100))}%)` : "";
+function invView(){
+  const invs = [...(H.inv || [])].sort((a,b)=>(+b.value||0)-(+a.value||0));
+  const addBtn = `<button type="button" class="ghost add-inv" id="addInv">+ Adaugă investiție</button>`;
+  if (!invs.length) return `<div class="empty"><strong>Nicio investiție încă</strong>Adaugă contul de bursă sau crypto cu valoarea de acum. O actualizați voi când se schimbă piața.</div>${addBtn}`;
+  const tot = invs.reduce((a,i)=>a+(+i.value||0),0), dep = invs.reduce((a,i)=>a+(+i.invested||0),0), g = tot - dep;
+  const byKind = k => invs.filter(i=>i.kind===k).reduce((a,i)=>a+(+i.value||0),0);
+  let html = `<div class="inv-sum"><div class="lbl">Total în investiții</div><div class="big">${nf.format(tot)} <small style="font-size:.45em;color:var(--muted)">${esc(cur())}</small></div>
+    ${dep>0?`<div class="gain ${g>=0?"up":"down"}">${pctTxt(g,dep)} față de cât ați depus</div>`:""}
+    <div class="inv-kinds"><div>Bursă<b>${nf.format(byKind("bursa"))}</b></div><div>Crypto<b>${nf.format(byKind("crypto"))}</b></div></div></div>`;
+  for (const i of invs) {
+    const gi = (+i.value||0) - (+i.invested||0);
+    const who = i.owner ? nameOf(i.owner) : "Comun";
+    html += `<button class="tx inv ${i.kind==="crypto"?"crypto":""}" data-inv="${esc(i.id)}">
+      <span class="ic">${i.kind==="crypto"?"₿":"↗"}</span>
+      <span class="meta"><span class="cat">${esc(i.name)}</span><span class="note">${esc(KIND[i.kind]||"")} · ${esc(who)}</span></span>
+      <span style="text-align:right"><span class="amt" style="display:block">${nf.format(+i.value||0)}</span>${+i.invested>0?`<span class="note ${gi>=0?"up":"down"}" style="font-size:.78rem">${gi>=0?"+":"−"}${nf0.format(Math.abs(gi/(+i.invested)*100))}%</span>`:""}</span></button>`;
+  }
+  return html + addBtn;
+}
+const invD = $("#invDialog");
+let invEditing = null, iKind = "bursa";
+function setKind(k){ iKind = k; invD.querySelectorAll("[data-kind]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.kind===k)); }
+invD.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => setKind(b.dataset.kind));
+function openInv(id){
+  const i = id ? (H.inv||[]).find(x=>x.id===id) : null;
+  invEditing = i;
+  $("#invTitle").textContent = i ? i.name : "Investiție nouă";
+  $("#iName").value = i ? i.name : "";
+  $("#iValue").value = i ? String(i.value).replace(".",",") : "";
+  $("#iInvested").value = i && i.invested ? String(i.invested).replace(".",",") : "";
+  $("#iOwner").innerHTML = `<option value="">Comun</option>` + (H.members||[]).map(u=>`<option value="${esc(u)}">${esc(nameOf(u))}</option>`).join("");
+  $("#iOwner").value = i ? (i.owner||"") : user.uid;
+  setKind(i ? i.kind : "bursa");
+  $("#iUpdated").hidden = !i;
+  if (i && i.updated) { const d = new Date(i.updated); $("#iUpdated").textContent = `Valoare actualizată ultima dată pe ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()} ${d.getFullYear()}.`; }
+  $("#iDepositBox").hidden = !i; $("#iDelete").hidden = !i; $("#iDeposit").value = ""; $("#iErr").textContent = "";
+  $("#iSave").textContent = i ? "Salvează valoarea" : "Adaugă investiția";
+  invD.showModal();
+}
+const saveInvs = list => updateDoc(hRef(), { inv: list }).catch(fail("Investițiile"));
+$("#invForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("#iName").value.trim(), value = parseAmt($("#iValue").value), inv0 = parseAmt($("#iInvested").value);
+  if (!name) { $("#iErr").textContent = "Scrie un nume, ca să știți ce e."; return; }
+  if (!(value >= 0)) { $("#iErr").textContent = "Scrie valoarea de acum."; return; }
+  const list = structuredClone(H.inv || []);
+  const data = { name, kind:iKind, owner:$("#iOwner").value, value, invested: inv0 >= 0 ? inv0 : (invEditing ? invEditing.invested||0 : value), updated:Date.now() };
+  if (invEditing) { const k = list.findIndex(x=>x.id===invEditing.id); if (k>=0) list[k] = { ...list[k], ...data }; }
+  else list.push({ id: Math.random().toString(36).slice(2,10) + Date.now().toString(36), ...data });
+  saveInvs(list); invD.close(); toast(invEditing ? "Valoarea a fost actualizată" : "Investiție adăugată");
+});
+$("#iDepositBtn").onclick = () => {
+  const amt = parseAmt($("#iDeposit").value);
+  if (!(amt > 0) || !invEditing) { $("#iErr").textContent = "Scrie suma depusă."; return; }
+  const list = structuredClone(H.inv || []), k = list.findIndex(x=>x.id===invEditing.id); if (k<0) return;
+  list[k].invested = Math.round(((+list[k].invested||0) + amt)*100)/100;
+  list[k].value = Math.round(((+list[k].value||0) + amt)*100)/100;
+  list[k].updated = Date.now();
+  // categoria Investiții, dacă nu există
+  const c = structuredClone(cats());
+  if (!c.out.includes("Investiții")) c.out.splice(Math.max(c.out.length-1,0), 0, "Investiții");
+  updateDoc(hRef(), { inv: list, cats: c }).catch(fail("Investițiile"));
+  addDoc(collection(db, "households", hid, "tx"), { type:"out", amount:amt, cat:"Investiții", date:ymd(new Date()), note:list[k].name, by:user.uid, created:Date.now() }).catch(fail("Depunerea"));
+  invD.close(); toast(`Ai depus ${money(amt)} în ${list[k].name}`);
+};
+$("#iDelete").onclick = () => {
+  if (!invEditing || !confirm(`Ștergi „${invEditing.name}” din investiții? Tranzacțiile deja notate rămân.`)) return;
+  saveInvs((H.inv||[]).filter(x=>x.id!==invEditing.id)); invD.close(); toast("Investiție ștearsă");
+};
 
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
 document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
