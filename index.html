@@ -618,7 +618,7 @@ function startHousehold(id){
     H = snap.data();
     $("#syncDot").classList.toggle("off", snap.metadata.fromCache);
     $("#syncDot").title = snap.metadata.fromCache ? "Offline: modificările se trimit când revine internetul" : "Sincronizat";
-    if ($("#scr-app").hidden) { show("app"); subMonth(); }
+    if ($("#scr-app").hidden) { show("app"); subMonth(); setTimeout(quickAdd, 150); }
     render();
     if ($("#setDialog").open) fillSettings(false);
   }, err => {
@@ -786,6 +786,40 @@ function renderChips(){
   $("#fCats").innerHTML = list.map(c=>`<button type="button" aria-pressed="${c===fCat}">${esc(c)}</button>`).join("");
   $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); autoNote(); renderInvPick(); });
 }
+/* ---------- deschidere din Scurtături (Apple Pay) ----------
+   ?add=out&amount=23,50&note=Mega%20Image  → deschide cheltuiala completată */
+const quick = (() => { const a = params.get("add"); return a ? { type: a === "in" ? "in" : "out", amount: params.get("amount") || "", note: params.get("note") || params.get("merchant") || "" } : null; })();
+// suma din Wallet poate veni ca „RON 23,50”, „23.50 lei”, „1.234,56” sau „1,234.56”
+function walletAmount(s){
+  let x = String(s || "").replace(/[^\d.,]/g, "");
+  if (!x) return NaN;
+  const lc = x.lastIndexOf(","), ld = x.lastIndexOf(".");
+  if (lc > -1 && ld > -1) x = lc > ld ? x.replace(/\./g, "").replace(",", ".") : x.replace(/,/g, "");
+  else if (lc > -1) x = x.replace(",", ".");
+  const v = parseFloat(x); return isFinite(v) ? Math.round(v*100)/100 : NaN;
+}
+const MERCHANT_CATS = [
+  [/mega ?image|lidl|kaufland|carrefour|auchan|profi|penny|la doi pa[sș]i|cora|selgros|metro|freshful|glovo|tazz|bolt food|wolt|mcdonald|kfc|starbucks|5 to go|paul|panifica/i, "Mâncare"],
+  [/bolt|uber|omv|petrom|mol|rompetrol|lukoil|socar|metrorex|stb|cfr|parking|parcare|wizz|ryanair|tarom/i, "Transport"],
+  [/netflix|spotify|apple\.com|icloud|youtube|google|hbo|disney|max\b|chatgpt|openai|anthropic|claude|microsoft|adobe/i, "Abonamente"],
+  [/enel|e\.?on|engie|digi|orange|vodafone|telekom|apa nova|hidroelectrica|electrica|ppc/i, "Facturi"],
+  [/catena|dr\.? max|help ?net|sensiblu|farmacia|regina maria|medlife|sanador/i, "Sănătate"],
+  [/emag|altex|flanco|dedeman|ikea|leroy|hornbach|zara|h&m|decathlon|about you|fashion days|amazon|temu|shein/i, "Cumpărături"],
+];
+function quickAdd(){
+  if (!quick) return;
+  history.replaceState(null, "", location.pathname);
+  openTx(quick.type);
+  const v = walletAmount(quick.amount);
+  if (v > 0) $("#fAmount").value = String(v).replace(".", ",");
+  if (quick.note) {
+    $("#fNote").value = quick.note.slice(0, 80);
+    const hit = MERCHANT_CATS.find(([re]) => re.test(quick.note));
+    if (hit && cats()[quick.type].includes(hit[1])) { fCat = hit[1]; renderChips(); renderInvPick(); }
+  }
+  setTimeout(() => $("#fAmount").focus(), 80);
+}
+
 function openTx(type, t){
   editing = t || null;
   fCat = t ? t.cat : null;
