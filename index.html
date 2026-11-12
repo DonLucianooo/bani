@@ -390,7 +390,7 @@ window.FIREBASE_CONFIG = {
     </div>
     <div class="chips coin-chips" id="cSymChips"></div>
     <div class="row3">
-      <div class="field"><label for="cQty">Cantitate</label><input id="cQty" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label for="cQty">Cantitate</label><input id="cQty" inputmode="decimal" placeholder="opțional"></div>
       <div class="field"><label for="cUsd">Cât ai plătit în total</label>
         <div style="display:flex;gap:6px"><input id="cUsd" inputmode="decimal" placeholder="0" style="min-width:0"><select id="cUnit" style="width:auto;padding:11px 8px" aria-label="Monedă"><option value="lei">lei</option><option value="usd">USD</option></select></div></div>
     </div>
@@ -1247,9 +1247,17 @@ function openCtx(t){
 $("#pfAdd").onclick = () => openCtx(null);
 $("#ctxForm").addEventListener("submit", e => {
   e.preventDefault();
-  const sym = $("#cSym").value.trim().toUpperCase(), q = parseFloat(String($("#cQty").value).replace(/\s/g,"").replace(",",".")), paid = parseAmt($("#cUsd").value);
+  const sym = $("#cSym").value.trim().toUpperCase(), paid = parseAmt($("#cUsd").value);
+  let q = parseFloat(String($("#cQty").value).replace(/\s/g,"").replace(",","."));
   const u = $("#cUnit").value === "lei" ? Math.round(paid / pfRate() * 100)/100 : paid;
-  if (!sym || !(q > 0) || !(u >= 0)) { $("#cErr").textContent = "Completează moneda, cantitatea și cât ai plătit."; return; }
+  // fără cantitate: o calculăm din suma plătită și prețul de acum
+  if (sym && !(q > 0) && u > 0) {
+    const pu = (live[sym] && live[sym].usd) || +((pfAssets().find(a=>a.sym===sym)||{}).price) || 0;
+    if (pu > 0) q = +(u / pu).toPrecision(8);
+  }
+  if (!sym) { $("#cErr").textContent = "Alege moneda."; return; }
+  if (!(u > 0) && !(q > 0)) { $("#cErr").textContent = "Scrie cât ai plătit sau câte monede ai luat."; return; }
+  if (!(q > 0)) { $("#cErr").textContent = `Nu găsesc prețul pentru ${sym}, așa că scrie și cantitatea.`; return; }
   const t = { type:cType, asset:sym, qty:q, usd:u, date:$("#cDate").value || ymd(new Date()), platform:$("#cPlat").value.trim(), note:$("#cNote").value.trim() };
   const lei = Math.round(($("#cUnit").value === "lei" ? paid : paid * pfRate()) * 100)/100;
   let msg = "Tranzacție salvată";
@@ -1289,6 +1297,14 @@ function ctxPx(){
     if (!pu) { el.innerHTML = `Nu găsesc prețul pentru ${esc(sym)}. Scrie tu cât ai plătit.`; return; }
     const r = pfRate(), unitLei = $("#cUnit").value === "lei";
     let h = `Preț acum: ${usdF(pu, pu<1?4:2)} / ${esc(sym)} (≈ ${nf.format(pu*r)} ${esc(cur())})`;
+    const paid0 = parseAmt($("#cUsd").value);
+    if (!(q > 0) && paid0 > 0) {
+      const estQ = (unitLei ? paid0/r : paid0) / pu;
+      h += ` · cu ${unitLei ? nf.format(paid0)+" "+esc(cur()) : usdF(paid0)} iei ≈ ${qtyF(estQ)} ${esc(sym)} <button type="button" class="link" id="cUseQty">Folosește</button>`;
+      el.innerHTML = h;
+      $("#cUseQty").onclick = () => { $("#cQty").value = String(+estQ.toPrecision(8)).replace(".",","); ctxPx(); };
+      return;
+    }
     if (q > 0) { const tot = unitLei ? pu*q*r : pu*q; h += ` · ${qtyF(q)} ${esc(sym)} ≈ ${unitLei ? nf.format(tot)+" "+esc(cur()) : usdF(tot)} <button type="button" class="link" id="cUseNow">Folosește</button>`;
       const paid = parseAmt($("#cUsd").value);
       if (paid > 0) { const per = (unitLei ? paid/r : paid) / q; h += `<br>Ai plătit ${usdF(per, per<1?4:2)} / ${esc(sym)}`; }
