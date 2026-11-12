@@ -186,6 +186,8 @@ dialog::backdrop{background:rgba(15,25,15,.4)}
 .coin-tx .r:first-child{border-top:0}
 .coin-tx .r button{border:0;background:none;color:var(--accent-text);font-weight:600;padding:0}
 .pf-meta{font-size:.78rem;color:var(--muted);text-align:center;margin:8px 0 0}
+.coin-chips button{padding:6px 11px;font-size:.85rem;font-weight:600}
+.coin-chips:empty{display:none}
 .row3{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -314,8 +316,9 @@ window.FIREBASE_CONFIG = {
     <div class="field"><span class="flbl">Categorie</span><div class="chips" id="fCats"></div></div>
     <div class="field" id="fInvBox" hidden><label for="fInv">Se adaugă automat la investiția</label><select id="fInv"></select></div>
     <div class="row2" id="fCoinBox" hidden>
-      <div class="field"><label for="fCoin">Monedă</label><input id="fCoin" list="cSymList" autocapitalize="characters" placeholder="ex. BTC"></div>
+      <div class="field"><label for="fCoin">Monedă</label><input id="fCoin" list="cSymList" autocapitalize="characters" autocomplete="off" placeholder="ex. BTC"></div>
       <div class="field"><label for="fCoinQty">Cantitate</label><input id="fCoinQty" inputmode="decimal" placeholder="câte monede"></div>
+      <div class="chips coin-chips" id="fCoinChips" style="grid-column:1/-1"></div>
     </div>
     <div class="row2">
       <div class="field"><label for="fDate">Data</label><input type="date" id="fDate"></div>
@@ -382,9 +385,10 @@ window.FIREBASE_CONFIG = {
       <button type="button" data-ctype="sell" aria-pressed="false">Vânzare</button>
     </div>
     <div class="row3">
-      <div class="field"><label for="cSym">Monedă</label><input id="cSym" list="cSymList" autocapitalize="characters" placeholder="ex. NEAR"><datalist id="cSymList"></datalist></div>
+      <div class="field"><label for="cSym">Monedă</label><input id="cSym" list="cSymList" autocapitalize="characters" autocomplete="off" placeholder="ex. NEAR"><datalist id="cSymList"></datalist></div>
       <div class="field"><label for="cDate">Data</label><input type="date" id="cDate"></div>
     </div>
+    <div class="chips coin-chips" id="cSymChips"></div>
     <div class="row3">
       <div class="field"><label for="cQty">Cantitate</label><input id="cQty" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label for="cUsd">Cât ai plătit în total</label>
@@ -758,7 +762,20 @@ function renderInvPick(){
 function coinBox(){
   const on = !$("#fInvBox").hidden && $("#fInv").value === "__pf";
   $("#fCoinBox").hidden = !on;
-  if (on) $("#cSymList").innerHTML = pfAssets().map(a=>`<option value="${esc(a.sym)}">`).join("");
+  if (on) { $("#cSymList").innerHTML = pfAssets().map(a=>`<option value="${esc(a.sym)}">`).join(""); coinChips("#fCoin", "#fCoinChips"); }
+}
+// pe iPhone lista din câmp nu apare, așa că arătăm monedele ca butoane
+function coinChips(inputSel, boxSel){
+  const inp = $(inputSel), box = $(boxSel); if (!box) return;
+  let syms = [];
+  try { syms = pfCalc().rows.filter(r => r.qty > 1e-9).map(r => r.a.sym); } catch(e){ syms = pfAssets().map(a => a.sym); }
+  const draw = () => {
+    const cur = inp.value.trim().toUpperCase();
+    box.innerHTML = syms.map(sy => `<button type="button" aria-pressed="${sy===cur}" data-sym="${esc(sy)}">${esc(sy)}</button>`).join("");
+  };
+  draw();
+  box.onclick = e => { const b = e.target.closest("[data-sym]"); if (!b) return; inp.value = b.dataset.sym; draw(); inp.dispatchEvent(new Event("input")); };
+  inp.oninput = () => { draw(); if (inputSel === "#cSym") ctxPx(); };
 }
 // adaugă (sau scade) o sumă într-o investiție; întoarce id-ul investiției
 function bumpInv(invId, delta, kind, name){
@@ -1216,6 +1233,7 @@ ctxD.querySelectorAll("[data-ctype]").forEach(b => b.onclick = () => setCType(b.
 function openCtx(t){
   ctxEditing = t || null;
   $("#cSymList").innerHTML = pfAssets().map(a=>`<option value="${esc(a.sym)}">`).join("");
+  setTimeout(() => coinChips("#cSym", "#cSymChips"), 0);
   $("#ctxTitle").textContent = t ? "Modifică tranzacția" : "Tranzacție crypto";
   setCType(t ? t.type : "buy");
   $("#cSym").value = t ? t.asset : ""; $("#cDate").value = t ? t.date : ymd(new Date());
@@ -1279,7 +1297,7 @@ function ctxPx(){
     const b = $("#cUseNow"); if (b) b.onclick = () => { $("#cUsd").value = (unitLei ? pu*q*r : pu*q).toFixed(2).replace(".",","); ctxPx(); };
   }, 350);
 }
-["#cSym","#cQty","#cUsd"].forEach(id => $(id).addEventListener("input", ctxPx));
+["#cQty","#cUsd"].forEach(id => $(id).addEventListener("input", ctxPx));
 $("#cUnit").addEventListener("change", ctxPx);
 function linkTxt(){ $("#cLinkTxt").textContent = cType === "sell" ? "Notează și în Bani, ca încasare la Crypto (banii intră la tine)" : "Notează și în Bani, ca cheltuială la Crypto (se scade din banii tăi)"; }
 $("#cDelete").onclick = () => { if (!ctxEditing || !confirm(ctxEditing.baniTx ? "Ștergi tranzacția din portofoliu? Se șterge și din Bani." : "Ștergi tranzacția din portofoliu?")) return; pfDelTx(ctxEditing.id); ctxD.close(); };
