@@ -69,7 +69,10 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .totals > div{display:flex;flex-direction:column;background:rgba(255,255,255,.75);border-radius:16px;padding:10px 13px}
 .totals .t-lbl{font-size:.82rem;font-weight:600;color:var(--hero-ink);display:flex;align-items:center;gap:5px}
 .totals .t-sub{white-space:nowrap;font-size:.74rem;color:var(--hero-ink);margin-top:2px;font-variant-numeric:tabular-nums}
-.totals .t-bon{display:flex;flex-direction:column;margin-top:10px;padding-top:10px;border-top:1px dashed #CFE0C2}
+.totals.stacked{grid-template-columns:1fr}
+.totals > div.has-bon{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.totals .t-main,.totals .t-bon{display:flex;flex-direction:column;min-width:0}
+.totals .t-bon{border-left:1px dashed #CFE0C2;padding-left:12px}
 .tx .tag{display:inline-block;font-size:.7rem;font-weight:600;color:#8A5A00;background:#FFF1D6;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 .totals .t-val{font-family:var(--display);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 
@@ -684,11 +687,13 @@ function render(){
   members.forEach(u => per[u] = { bal:0, in:0, out:0, bon:0, hasBon:false, bin:0, bout:0 });
   upToAll.forEach(t => { if (!per[t.by]) return; if (isVoucher(t)) { per[t.by].bon += sgn(t); per[t.by].hasBon = true; } else per[t.by].bal += sgn(t); });
   tx.forEach(t => { if (!per[t.by]) return; if (isVoucher(t)) per[t.by][t.type==='in'?'bin':'bout'] += t.amount; else per[t.by][t.type] += t.amount; });
+  // dacă cineva are bonuri, fiecare persoană ocupă toată lățimea, iar bonurile stau în dreapta
+  $("#persons").classList.toggle("stacked", members.some(u => per[u].hasBon));
   $("#persons").innerHTML = members.map(u => {
     const p = per[u], b = p.bal;
-    return `<div><span class="t-lbl">${esc(nameOf(u))}</span>
+    return `<div class="${p.hasBon ? "has-bon" : ""}"><span class="t-main"><span class="t-lbl">${esc(nameOf(u))}</span>
       <span class="t-val" style="${b<0?"color:var(--out)":""}">${b<0?"−":""}${nf.format(Math.abs(b))}</span>
-      <span class="t-sub" title="${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()}">↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span>
+      <span class="t-sub" title="${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()}">↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span></span>
       ${p.hasBon ? `<span class="t-bon"><span class="t-lbl">Bonuri de masă</span>
         <span class="t-val" style="${p.bon<0?"color:var(--out)":""}">${p.bon<0?"−":""}${nf.format(Math.abs(p.bon))}</span>
         <span class="t-sub">↓ ${nf0.format(p.bin)} · ↑ ${nf0.format(p.bout)}</span></span>` : ""}</div>`;
