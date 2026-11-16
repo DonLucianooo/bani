@@ -69,6 +69,9 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .totals > div{display:flex;flex-direction:column;background:rgba(255,255,255,.75);border-radius:16px;padding:10px 13px}
 .totals .t-lbl{font-size:.82rem;font-weight:600;color:var(--hero-ink);display:flex;align-items:center;gap:5px}
 .totals .t-sub{white-space:nowrap;font-size:.74rem;color:var(--hero-ink);margin-top:2px;font-variant-numeric:tabular-nums}
+.totals .t-bon{font-size:.78rem;color:var(--hero-ink);margin-top:6px;padding-top:6px;border-top:1px dashed #CFE0C2;display:flex;justify-content:space-between;gap:6px;white-space:nowrap}
+.totals .t-bon b{font-family:var(--display);font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.tx .tag{display:inline-block;font-size:.7rem;font-weight:600;color:#8A5A00;background:#FFF1D6;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 .totals .t-val{font-family:var(--display);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 
 .panel{background:var(--surface);border-radius:24px;padding:18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(20,30,20,.05)}
@@ -324,6 +327,7 @@ window.FIREBASE_CONFIG = {
       <div class="field"><label for="fDate">Data</label><input type="date" id="fDate"></div>
       <div class="field"><label for="fNote">Notă</label><input id="fNote" placeholder="opțional" maxlength="80"></div>
     </div>
+    <p class="hint" id="fVoucher" hidden style="margin:0;color:#8A5A00">Se notează la Bonuri de masă și nu intră în totalul mare.</p>
     <p class="hint" id="fBy" hidden></p>
     <button type="submit" class="primary" id="fSave">Salvează</button>
     <button type="button" class="ghost danger" id="fDelete" hidden>Șterge tranzacția</button>
@@ -493,6 +497,13 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const monthKey = d => ymd(d).slice(0,7);
 const parseAmt = s => { const v = parseFloat(String(s).replace(/\s/g,"").replace(",",".")); return isFinite(v) ? Math.round(v*100)/100 : NaN; };
+// bonuri de masă: încasarea la categoria „Bonuri de masă” le adaugă,
+// cheltuiala cu „bonuri” / „card de bonuri” / „tichete” în notă le scade; nu intră în totalul mare
+const VOUCHER_CAT = "Bonuri de masă";
+const isVoucherCat = c => /^bonuri( de mas[aă])?$/i.test(String(c||"").trim());
+const VOUCHER_NOTE = /\bbonuri\b|\bbon de mas|card(ul)? de bonuri|tichet/i;
+const isVoucher = t => t.type === "in" ? isVoucherCat(t.cat) : VOUCHER_NOTE.test(t.note || "");
+const catList = type => { const l = cats()[type]; return type === "in" && !l.some(isVoucherCat) ? [...l, VOUCHER_CAT] : l; };
 const nameOf = uid => (H && H.memberNames && H.memberNames[uid]) || "Cineva";
 const myName = () => (user && (user.displayName || (user.email||"").split("@")[0])) || "Eu";
 
@@ -660,9 +671,9 @@ function render(){
   const mk = monthKey(view), isNow = mk === monthKey(new Date());
   $("#hhLabel").textContent = isNow ? `${H.name || "Buget"}, total disponibil` : `Total la final de ${MONTHS[view.getMonth()].toLowerCase()}`;
   const tx = monthTx;
-  const tout = tx.filter(t=>t.type==="out").reduce((a,t)=>a+t.amount,0);
   // soldul include tot ce a rămas din lunile trecute
-  const upTo = everyTx.filter(t => typeof t.date === "string" && t.date.slice(0,7) <= mk);
+  const upToAll = everyTx.filter(t => typeof t.date === "string" && t.date.slice(0,7) <= mk);
+  const upTo = upToAll.filter(t => !isVoucher(t));
   const sgn = t => t.type === "in" ? t.amount : -t.amount;
   const bal = upTo.reduce((a,t)=>a+sgn(t),0);
 
@@ -671,14 +682,15 @@ function render(){
   // banii fiecăruia: încasările lui minus cheltuielile lui
   const members = [...(H.members||[])].sort((a,b) => (a===user.uid ? -1 : b===user.uid ? 1 : 0));
   const per = {};
-  members.forEach(u => per[u] = { bal:0, in:0, out:0 });
-  upTo.forEach(t => { if (per[t.by]) per[t.by].bal += sgn(t); });
-  tx.forEach(t => { if (per[t.by]) per[t.by][t.type] += t.amount; });
+  members.forEach(u => per[u] = { bal:0, in:0, out:0, bon:0, hasBon:false });
+  upToAll.forEach(t => { if (!per[t.by]) return; if (isVoucher(t)) { per[t.by].bon += sgn(t); per[t.by].hasBon = true; } else per[t.by].bal += sgn(t); });
+  tx.forEach(t => { if (per[t.by] && !isVoucher(t)) per[t.by][t.type] += t.amount; });
   $("#persons").innerHTML = members.map(u => {
     const p = per[u], b = p.bal;
     return `<div><span class="t-lbl">${esc(nameOf(u))}</span>
       <span class="t-val" style="${b<0?"color:var(--out)":""}">${b<0?"−":""}${nf.format(Math.abs(b))}</span>
-      <span class="t-sub" title="${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()}">↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span></div>`;
+      <span class="t-sub" title="${isNow ? "luna asta" : MONTHS[view.getMonth()].toLowerCase()}">↓ ${nf0.format(p.in)} · ↑ ${nf0.format(p.out)}</span>
+      ${p.hasBon ? `<span class="t-bon">Bonuri de masă <b style="${p.bon<0?"color:var(--out)":""}">${p.bon<0?"−":""}${nf.format(Math.abs(p.bon))}</b></span>` : ""}</div>`;
   }).join("");
 
   // pe categorii
@@ -717,7 +729,7 @@ function render(){
     const sub = [who, t.note && t.note !== who ? t.note : ""].filter(Boolean).join(", ");
     html += `<button class="tx ${t.type}" data-id="${esc(t.id)}">
       <span class="ic">${esc((t.cat||"?").charAt(0))}</span>
-      <span class="meta"><span class="cat">${esc(t.cat)}</span>${sub?`<span class="note">${esc(sub)}</span>`:""}</span>
+      <span class="meta"><span class="cat">${esc(t.cat)}${t.type==="out" && isVoucher(t) ? `<span class="tag">bonuri</span>` : ""}</span>${sub?`<span class="note">${esc(sub)}</span>`:""}</span>
       <span class="amt">${t.type==="in"?"+":"−"}${nf.format(t.amount)}</span></button>`;
   }
   list.innerHTML = html;
@@ -737,7 +749,7 @@ const txD = $("#txDialog");
 function setType(type){
   fType = type;
   txD.querySelectorAll("[data-type]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.type===type));
-  if (!cats()[type].includes(fCat)) fCat = cats()[type][0];
+  if (!catList(type).includes(fCat)) fCat = catList(type)[0];
   $("#txTitle").textContent = editing ? "Modifică tranzacția" : (type==="out" ? "Cheltuială nouă" : "Încasare nouă");
   renderChips();
   autoNote();
@@ -793,13 +805,17 @@ function bumpInv(invId, delta, kind, name){
   updateDoc(hRef(), { inv: list }).catch(fail("Investițiile"));
   return i.id;
 }
+function voucherHint(){ $("#fVoucher").hidden = !isVoucher({ type:fType, cat:fCat, note:$("#fNote").value }); }
+$("#fNote").addEventListener("input", voucherHint);
 function autoNote(){
   const n = $("#fNote"), me = myName();
   if (isSalary() && !n.value.trim()) n.value = me;
   else if (!isSalary() && n.value.trim() === me && !editing) n.value = "";
+  voucherHint();
 }
 function renderChips(){
-  const list = cats()[fType];
+  const list = catList(fType);
+  voucherHint();
   $("#fCats").innerHTML = list.map(c=>`<button type="button" aria-pressed="${c===fCat}">${esc(c)}</button>`).join("");
   $("#fCats").querySelectorAll("button").forEach((b,i)=> b.onclick = () => { fCat = list[i]; renderChips(); autoNote(); renderInvPick(); });
 }
@@ -895,7 +911,7 @@ $("#txForm").addEventListener("submit", e => {
     }
     const rec = { ...data, by:user.uid, created:Date.now(), ...(invId ? { invId } : {}), ...(pfTx ? { pfTx } : {}) };
     (baniRef ? setDoc(baniRef, rec) : addDoc(col, rec)).catch(fail("Salvarea"));
-    toast(invName ? `Salvat și adăugat la ${invName}` : (fType==="out"?"Cheltuială salvată":"Încasare salvată"));
+    toast(invName ? `Salvat și adăugat la ${invName}` : isVoucher(data) ? (fType==="out" ? "Plătit din bonuri de masă" : "Adăugat la bonuri de masă") : (fType==="out"?"Cheltuială salvată":"Încasare salvată"));
   }
   const d = new Date(date+"T12:00");
   const nv = new Date(d.getFullYear(), d.getMonth(), 1);
